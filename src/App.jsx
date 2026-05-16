@@ -24,17 +24,28 @@ const FINGERPRINTS = {
     accentColor: "#22c55e",
     description: "Brazil, Portugal & Lusophone Africa",
 
-    // Search uses accent clusters and high-frequency native tokens
-    // These fish with the language itself not geography
+    // Category-based search terms — keyed by category slug
+    // Each category maps to PT words that appear in newsletter names/bios
+    categoryTerms: {
+      travel:      ["viagem", "relatos de viagem", "mochila", "nomade digital", "turismo brasil", "aventura"],
+      literature:  ["literatura brasileira", "crônica", "conto", "ensaio", "poesia", "narrativa", "escrita criativa"],
+      culture:     ["cultura brasileira", "arte", "música brasileira", "cinema brasileiro", "fotografia"],
+      politics:    ["politica brasil", "democracia", "eleições", "direitos humanos", "geopolitica"],
+      philosophy:  ["filosofia", "pensamento", "reflexões", "estoicismo", "ética"],
+      economics:   ["economia brasil", "mercado financeiro", "investimentos", "negócios", "empreendedorismo"],
+      food:        ["gastronomia", "culinária brasileira", "receitas", "comida", "alimentação"],
+      science:     ["ciência", "tecnologia brasil", "inovação", "saude mental", "psicologia"],
+      history:     ["historia brasil", "memória", "patrimônio", "colonialismo", "identidade"],
+      society:     ["feminismo brasil", "raça", "diversidade", "comunidade", "urbanismo"],
+    },
+    // fallback flat list (used if no categories selected)
     searchTerms: [
-      "ção", "não", "também", "está", "você",
-      "arroz", "bacalhau", "saudade", "português",
-      "estou", "somos", "temos", "vamos"
+      "literatura brasileira", "viagem brasil", "crônica", "filosofia",
+      "politica brasil", "cultura brasileira", "ensaio", "narrativa",
+      "economia brasil", "jornalismo",
     ],
 
     signals: {
-      // Layer 1 — Exclusive characters (weight: 40)
-      // Nasal vowels are the strongest Portuguese fingerprint
       exclusiveChars: {
         weight: 40,
         patterns: [
@@ -48,8 +59,6 @@ const FINGERPRINTS = {
           { regex: /ç/g, score: 3, note: "cedilla — shared with FR but common in PT" },
         ]
       },
-
-      // Layer 2 — Special character patterns (weight: 15)
       charPatterns: {
         weight: 15,
         patterns: [
@@ -59,124 +68,70 @@ const FINGERPRINTS = {
           { regex: /eit[oa]/g, score: 6, note: "ct->eit resolution — PT (leite, feito, noite)" },
         ]
       },
-
-      // Layer 3 — Possessive pronouns (weight: 20)
       possessives: {
         weight: 20,
         tokens: [
-          { word: "minha", score: 10 },
-          { word: "meu", score: 8 },
-          { word: "meus", score: 8 },
-          { word: "minhas", score: 10 },
-          { word: "nossa", score: 9 },
-          { word: "nosso", score: 9 },
-          { word: "nossos", score: 9 },
-          { word: "nossas", score: 9 },
-          { word: "sua", score: 6 },
-          { word: "seu", score: 6 },
-          { word: "tua", score: 7 },
-          { word: "teu", score: 7 },
+          { word: "minha", score: 10 }, { word: "meu", score: 8 },
+          { word: "meus", score: 8 }, { word: "minhas", score: 10 },
+          { word: "nossa", score: 9 }, { word: "nosso", score: 9 },
+          { word: "nossos", score: 9 }, { word: "nossas", score: 9 },
+          { word: "sua", score: 6 }, { word: "seu", score: 6 },
+          { word: "tua", score: 7 }, { word: "teu", score: 7 },
         ]
       },
-
-      // Layer 4 — Fused prepositions (weight: 15)
       fusedPreps: {
         weight: 15,
         tokens: [
-          { word: "do", score: 5 },
-          { word: "da", score: 5 },
-          { word: "dos", score: 6 },
-          { word: "das", score: 6 },
-          { word: "no", score: 4 },
-          { word: "na", score: 4 },
-          { word: "nos", score: 5 },
-          { word: "nas", score: 5 },
-          { word: "ao", score: 7 },
-          { word: "aos", score: 7 },
-          { word: "pela", score: 8 },
-          { word: "pelo", score: 8 },
-          { word: "numa", score: 9 },
-          { word: "dum", score: 9 },
+          { word: "do", score: 5 }, { word: "da", score: 5 },
+          { word: "dos", score: 6 }, { word: "das", score: 6 },
+          { word: "no", score: 4 }, { word: "na", score: 4 },
+          { word: "nos", score: 5 }, { word: "nas", score: 5 },
+          { word: "ao", score: 7 }, { word: "aos", score: 7 },
+          { word: "pela", score: 8 }, { word: "pelo", score: 8 },
+          { word: "numa", score: 9 }, { word: "dum", score: 9 },
         ]
       },
-
-      // Layer 5 — Negation (weight: 20)
       negation: {
         weight: 20,
         tokens: [
-          { word: "não", score: 10 }, // nasal + negation = double signal
-          { word: "nunca", score: 7 },
-          { word: "nada", score: 6 },
-          { word: "ninguém", score: 9 },
-          { word: "nem", score: 5 },
-          { word: "jamais", score: 4 }, // archaic PT
+          { word: "não", score: 10 },
+          { word: "nunca", score: 7 }, { word: "nada", score: 6 },
+          { word: "ninguém", score: 9 }, { word: "nem", score: 5 },
+          { word: "jamais", score: 4 },
         ]
       },
-
-      // Layer 6 — Pronoun + verb pairs (weight: 35)
-      // Existential verbs: to be (ser/estar), to have (ter), to know (saber/conhecer), to go (ir)
       verbPairs: {
         weight: 35,
         pairs: [
-          // TO BE — ser
-          { pattern: /\beu\s+sou\b/g, score: 10 },
-          { pattern: /\btu\s+és\b/g, score: 10 },
-          { pattern: /\bele\s+é\b|\bela\s+é\b/g, score: 10 },
-          { pattern: /\bnós\s+somos\b/g, score: 10 },
-          { pattern: /\beles\s+são\b|\belas\s+são\b/g, score: 10 },
-          { pattern: /\bvocê\s+é\b/g, score: 10 },
-          // TO BE — estar
-          { pattern: /\bestou\b/g, score: 9 },
-          { pattern: /\bestás\b|\bestá\b/g, score: 9 },
-          { pattern: /\bestamos\b/g, score: 9 },
-          { pattern: /\bestão\b/g, score: 10 }, // nasal ending = double
-          // TO HAVE — ter
-          { pattern: /\beu\s+tenho\b/g, score: 10 },
-          { pattern: /\btu\s+tens\b/g, score: 10 },
-          { pattern: /\bele\s+tem\b|\bela\s+tem\b/g, score: 9 },
-          { pattern: /\bnós\s+temos\b/g, score: 10 },
-          { pattern: /\beles\s+têm\b/g, score: 10 },
-          // TO KNOW — saber/conhecer
-          { pattern: /\beu\s+sei\b/g, score: 9 },
-          { pattern: /\beu\s+conheço\b/g, score: 10 },
-          { pattern: /\bsabemos\b/g, score: 8 },
-          // TO GO — ir
-          { pattern: /\beu\s+vou\b/g, score: 10 },
-          { pattern: /\btu\s+vais\b/g, score: 10 },
-          { pattern: /\bele\s+vai\b|\bela\s+vai\b/g, score: 9 },
-          { pattern: /\bnós\s+vamos\b/g, score: 9 },
-          { pattern: /\beles\s+vão\b/g, score: 10 }, // nasal = double
-          // Progressive — Brazilian marker
+          { pattern: /\beu\s+sou\b/g, score: 10 }, { pattern: /\btu\s+és\b/g, score: 10 },
+          { pattern: /\bele\s+é\b|\bela\s+é\b/g, score: 10 }, { pattern: /\bnós\s+somos\b/g, score: 10 },
+          { pattern: /\beles\s+são\b|\belas\s+são\b/g, score: 10 }, { pattern: /\bvocê\s+é\b/g, score: 10 },
+          { pattern: /\bestou\b/g, score: 9 }, { pattern: /\bestás\b|\bestá\b/g, score: 9 },
+          { pattern: /\bestamos\b/g, score: 9 }, { pattern: /\bestão\b/g, score: 10 },
+          { pattern: /\beu\s+tenho\b/g, score: 10 }, { pattern: /\btu\s+tens\b/g, score: 10 },
+          { pattern: /\bele\s+tem\b|\bela\s+tem\b/g, score: 9 }, { pattern: /\bnós\s+temos\b/g, score: 10 },
+          { pattern: /\beles\s+têm\b/g, score: 10 }, { pattern: /\beu\s+sei\b/g, score: 9 },
+          { pattern: /\beu\s+conheço\b/g, score: 10 }, { pattern: /\bsabemos\b/g, score: 8 },
+          { pattern: /\beu\s+vou\b/g, score: 10 }, { pattern: /\btu\s+vais\b/g, score: 10 },
+          { pattern: /\bele\s+vai\b|\bela\s+vai\b/g, score: 9 }, { pattern: /\bnós\s+vamos\b/g, score: 9 },
+          { pattern: /\beles\s+vão\b/g, score: 10 },
           { pattern: /\bestou\s+\w+ando\b|\bestou\s+\w+endo\b/g, score: 10 },
-          // Personal infinitive — unique to PT
           { pattern: /\bpara\s+\w+armos\b|\bpara\s+\w+ermos\b/g, score: 10 },
         ]
       },
-
-      // Layer 7 — Minimal pairs (weight: 25)
-      // Words that differ by one char from another Romance language
       minimalPairs: {
         weight: 25,
         tokens: [
-          { word: "ela", score: 8 },   // vs elle (FR) vs ella (ES)
-          { word: "ele", score: 8 },   // vs il (FR) vs él (ES)
-          { word: "eles", score: 8 },
-          { word: "elas", score: 8 },
-          { word: "leite", score: 10 }, // vs leche (ES) vs lait (FR)
-          { word: "noite", score: 10 }, // vs noche (ES) vs nuit (FR)
-          { word: "feito", score: 10 }, // vs hecho (ES) vs fait (FR)
-          { word: "direito", score: 9 },
-          { word: "laranja", score: 10 }, // vs naranja (ES) — the l/n split
-          { word: "frango", score: 10 },  // unique PT word for chicken
-          { word: "vermelho", score: 10 }, // unique PT word for red
-          { word: "pimenta", score: 8 },
-          { word: "você", score: 10 },
-          { word: "vocês", score: 10 },
-          { word: "azeite", score: 10 }, // vs aceite (ES)
+          { word: "ela", score: 8 }, { word: "ele", score: 8 },
+          { word: "eles", score: 8 }, { word: "elas", score: 8 },
+          { word: "leite", score: 10 }, { word: "noite", score: 10 },
+          { word: "feito", score: 10 }, { word: "direito", score: 9 },
+          { word: "laranja", score: 10 }, { word: "frango", score: 10 },
+          { word: "vermelho", score: 10 }, { word: "pimenta", score: 8 },
+          { word: "você", score: 10 }, { word: "vocês", score: 10 },
+          { word: "azeite", score: 10 },
         ]
       },
-
-      // Layer 8 — Stopwords (weight: 10 — confirmation only)
       stopwords: {
         weight: 10,
         tokens: [
@@ -185,6 +140,50 @@ const FINGERPRINTS = {
           "sobre", "essa", "esse", "aqui", "isto", "quando", "assim",
           "entre", "depois", "antes", "ainda", "então", "sempre",
           "nunca", "tudo", "nada", "outro", "outra", "mesmo", "já"
+        ]
+      },
+
+      // Layer 9 — Everyday vocabulary (high-frequency PT words from real usage)
+      everydayVocab: {
+        weight: 30,
+        tokens: [
+          { word: "olá", score: 8 }, { word: "obrigado", score: 9 },
+          { word: "obrigada", score: 9 }, { word: "desculpe", score: 8 },
+          { word: "tchau", score: 9 }, { word: "saudade", score: 10 },
+          { word: "pão", score: 9 }, { word: "feijão", score: 10 },
+          { word: "queijo", score: 9 }, { word: "arroz", score: 7 },
+          { word: "café", score: 6 }, { word: "vinho", score: 7 },
+          { word: "cerveja", score: 9 }, { word: "água", score: 7 },
+          { word: "frango", score: 9 }, { word: "peixe", score: 8 },
+          { word: "carne", score: 7 }, { word: "frutas", score: 8 },
+          { word: "manteiga", score: 9 }, { word: "sobremesa", score: 9 },
+          { word: "viagem", score: 10 }, { word: "cidade", score: 7 },
+          { word: "ônibus", score: 10 }, { word: "metrô", score: 9 },
+          { word: "bairro", score: 9 }, { word: "avenida", score: 8 },
+          { word: "brasil", score: 8 }, { word: "brasileiro", score: 9 },
+          { word: "brasileira", score: 9 }, { word: "gente", score: 7 },
+          { word: "história", score: 6 }, { word: "semana", score: 6 },
+        ]
+      },
+
+      // Layer 10 — Prefix & suffix patterns (PT-exclusive morphology)
+      affixPatterns: {
+        weight: 35,
+        patterns: [
+          { regex: /\w{3,}ção/g, score: 10, note: "-ção suffix — exclusively PT" },
+          { regex: /\w{3,}ções/g, score: 10, note: "-ções plural — exclusively PT" },
+          { regex: /\w{3,}inho/g, score: 9, note: "-inho diminutive — Brazilian PT" },
+          { regex: /\w{3,}inha/g, score: 9, note: "-inha diminutive — Brazilian PT" },
+          { regex: /\w{4,}mente/g, score: 7, note: "-mente adverb suffix" },
+          { regex: /\w{3,}dade/g, score: 9, note: "-dade suffix — PT" },
+          { regex: /\w{3,}agem/g, score: 9, note: "-agem suffix — PT" },
+          { regex: /\w{3,}eiro/g, score: 8, note: "-eiro suffix — PT" },
+          { regex: /\w{3,}eira/g, score: 8, note: "-eira suffix — PT" },
+          { regex: /des[a-z]{3,}/g, score: 7, note: "des- reversal prefix" },
+          { regex: /\w{3,}amento/g, score: 8, note: "-amento noun suffix" },
+          { regex: /\w{3,}imento/g, score: 8, note: "-imento noun suffix" },
+          { regex: /pós-\w+/g, score: 9, note: "pós- prefix with accent — PT orthography" },
+          { regex: /\w{3,}ndo/g, score: 6, note: "-ndo gerund" },
         ]
       }
     }
@@ -200,10 +199,18 @@ const FINGERPRINTS = {
     accentColor: "#3b82f6",
     description: "France, Québec & Francophone Africa",
 
+    // Topic-based search terms for French newsletters
     searchTerms: [
-      "ne pas", "je suis", "il y a", "est-ce que",
-      "aussi", "très", "même", "leur", "eux",
-      "nous sommes", "vous êtes", "c'est", "l'", "qu'"
+      "politique france",
+      "économie france",
+      "philosophie",
+      "littérature française",
+      "journalisme",
+      "féminisme france",
+      "technologie france",
+      "cinéma français",
+      "histoire france",
+      "écologie",
     ],
 
     signals: {
@@ -215,151 +222,85 @@ const FINGERPRINTS = {
           { regex: /«|»/g, score: 9, note: "guillemets — French quotation" },
           { regex: /\b\w+eux\b/g, score: 8, note: "terminal -eux plural — FR" },
           { regex: /\b\w+aux\b/g, score: 8, note: "terminal -aux plural — FR" },
-          { regex: /ê/g, score: 5, note: "circumflex e — common in FR" },
-          { regex: /î/g, score: 5, note: "circumflex i — common in FR" },
-          { regex: /û/g, score: 5, note: "circumflex u — common in FR" },
-          { regex: /ï/g, score: 6, note: "diaeresis i — common in FR" },
-          { regex: /ë/g, score: 6, note: "diaeresis e — common in FR" },
+          { regex: /ê/g, score: 5 }, { regex: /î/g, score: 5 },
+          { regex: /û/g, score: 5 }, { regex: /ï/g, score: 6 },
+          { regex: /ë/g, score: 6 },
         ]
       },
-
       charPatterns: {
         weight: 15,
         patterns: [
-          // Elision — the apostrophe fingerprint
-          { regex: /\bl'/g, score: 8, note: "elision l' — FR" },
-          { regex: /\bd'/g, score: 7, note: "elision d' — FR" },
-          { regex: /\bj'/g, score: 9, note: "elision j' — exclusive FR" },
-          { regex: /\bn'/g, score: 8, note: "elision n' — FR" },
-          { regex: /\bc'/g, score: 8, note: "elision c' — FR" },
-          { regex: /\bqu'/g, score: 7, note: "elision qu' — FR" },
-          { regex: /\bm'/g, score: 8, note: "elision m' — FR" },
-          { regex: /\bs'/g, score: 6, note: "elision s' — FR" },
-          // Question inversion with hyphen
-          { regex: /\w+-vous\b|\w+-tu\b|\w+-il\b|\w+-elle\b/g, score: 10, note: "inversion question — FR" },
-          // est-ce que
-          { regex: /est-ce que/g, score: 10, note: "est-ce que — exclusive FR" },
+          { regex: /\bl'/g, score: 8 }, { regex: /\bd'/g, score: 7 },
+          { regex: /\bj'/g, score: 9 }, { regex: /\bn'/g, score: 8 },
+          { regex: /\bc'/g, score: 8 }, { regex: /\bqu'/g, score: 7 },
+          { regex: /\bm'/g, score: 8 }, { regex: /\bs'/g, score: 6 },
+          { regex: /\w+-vous\b|\w+-tu\b|\w+-il\b|\w+-elle\b/g, score: 10 },
+          { regex: /est-ce que/g, score: 10 },
         ]
       },
-
       possessives: {
         weight: 20,
         tokens: [
-          { word: "mon", score: 7 },
-          { word: "ma", score: 6 },
-          { word: "mes", score: 7 },
-          { word: "ton", score: 7 },
-          { word: "ta", score: 5 },
-          { word: "tes", score: 7 },
-          { word: "son", score: 6 },
-          { word: "sa", score: 5 },
-          { word: "ses", score: 7 },
-          { word: "notre", score: 8 },
-          { word: "nos", score: 7 },
-          { word: "votre", score: 8 },
-          { word: "vos", score: 7 },
-          { word: "leur", score: 9 },
-          { word: "leurs", score: 9 },
-          // Stressed possessives — exclusive to FR
-          { word: "mien", score: 10 },
-          { word: "mienne", score: 10 },
-          { word: "tien", score: 10 },
-          { word: "tienne", score: 10 },
-          { word: "sien", score: 10 },
-          { word: "sienne", score: 10 },
+          { word: "mon", score: 7 }, { word: "ma", score: 6 }, { word: "mes", score: 7 },
+          { word: "ton", score: 7 }, { word: "ta", score: 5 }, { word: "tes", score: 7 },
+          { word: "son", score: 6 }, { word: "sa", score: 5 }, { word: "ses", score: 7 },
+          { word: "notre", score: 8 }, { word: "nos", score: 7 },
+          { word: "votre", score: 8 }, { word: "vos", score: 7 },
+          { word: "leur", score: 9 }, { word: "leurs", score: 9 },
+          { word: "mien", score: 10 }, { word: "mienne", score: 10 },
+          { word: "tien", score: 10 }, { word: "tienne", score: 10 },
+          { word: "sien", score: 10 }, { word: "sienne", score: 10 },
         ]
       },
-
       fusedPreps: {
         weight: 15,
         tokens: [
-          { word: "au", score: 8 },   // à + le — exclusive FR form
-          { word: "aux", score: 9 },  // à + les
-          { word: "du", score: 7 },   // de + le
-          { word: "des", score: 5 },
+          { word: "au", score: 8 }, { word: "aux", score: 9 },
+          { word: "du", score: 7 }, { word: "des", score: 5 },
         ]
       },
-
       negation: {
         weight: 20,
         tokens: [
-          { word: "pas", score: 7 },    // ne...pas sandwich
-          { word: "plus", score: 5 },   // ne...plus
-          { word: "jamais", score: 6 }, // ne...jamais
-          { word: "rien", score: 7 },   // ne...rien
-          { word: "personne", score: 6 },
-          { word: "aucun", score: 7 },
-          { word: "aucune", score: 7 },
+          { word: "pas", score: 7 }, { word: "plus", score: 5 },
+          { word: "jamais", score: 6 }, { word: "rien", score: 7 },
+          { word: "personne", score: 6 }, { word: "aucun", score: 7 }, { word: "aucune", score: 7 },
         ],
         patterns: [
-          { regex: /ne\s+\w+\s+pas/g, score: 10, note: "ne...pas sandwich — exclusive FR" },
-          { regex: /ne\s+\w+\s+plus/g, score: 10 },
-          { regex: /ne\s+\w+\s+jamais/g, score: 10 },
-          { regex: /ne\s+\w+\s+rien/g, score: 10 },
-          { regex: /\bsais\s+pas\b|\bveux\s+pas\b|\bpeux\s+pas\b/g, score: 9, note: "dropped ne informal — FR" },
+          { regex: /ne\s+\w+\s+pas/g, score: 10 }, { regex: /ne\s+\w+\s+plus/g, score: 10 },
+          { regex: /ne\s+\w+\s+jamais/g, score: 10 }, { regex: /ne\s+\w+\s+rien/g, score: 10 },
+          { regex: /\bsais\s+pas\b|\bveux\s+pas\b|\bpeux\s+pas\b/g, score: 9 },
         ]
       },
-
       verbPairs: {
         weight: 35,
         pairs: [
-          // TO BE — être
-          { pattern: /\bje\s+suis\b/g, score: 10 },
-          { pattern: /\btu\s+es\b/g, score: 9 },
-          { pattern: /\bil\s+est\b|\belle\s+est\b/g, score: 9 },
-          { pattern: /\bnous\s+sommes\b/g, score: 10 },
-          { pattern: /\bvous\s+êtes\b/g, score: 10 },
-          { pattern: /\bils\s+sont\b|\belles\s+sont\b/g, score: 10 },
-          { pattern: /\bc'est\b/g, score: 8 },
-          { pattern: /\bil\s+y\s+a\b/g, score: 10 }, // il y a — exclusive FR
-          // TO HAVE — avoir
-          { pattern: /\bj'ai\b/g, score: 10 },
-          { pattern: /\btu\s+as\b/g, score: 9 },
-          { pattern: /\bil\s+a\b|\belle\s+a\b/g, score: 7 },
-          { pattern: /\bnous\s+avons\b/g, score: 10 },
-          { pattern: /\bvous\s+avez\b/g, score: 10 },
-          { pattern: /\bils\s+ont\b/g, score: 10 },
-          // TO KNOW — savoir/connaître
-          { pattern: /\bje\s+sais\b/g, score: 10 },
-          { pattern: /\bje\s+connais\b/g, score: 10 },
-          { pattern: /\bje\s+ne\s+sais\s+pas\b/g, score: 10 },
-          // TO GO — aller
-          { pattern: /\bje\s+vais\b/g, score: 10 },
-          { pattern: /\btu\s+vas\b/g, score: 10 },
-          { pattern: /\bil\s+va\b|\belle\s+va\b/g, score: 9 },
-          { pattern: /\bnous\s+allons\b/g, score: 10 },
-          { pattern: /\bvous\s+allez\b/g, score: 10 },
-          { pattern: /\bils\s+vont\b/g, score: 10 },
-          // Progressive — en train de — exclusive FR
-          { pattern: /en\s+train\s+de/g, score: 10 },
-          // Subjunctive trigger — que + subj
-          { pattern: /\bil\s+faut\s+que\b/g, score: 10 },
-          { pattern: /\bpour\s+que\b/g, score: 8 },
+          { pattern: /\bje\s+suis\b/g, score: 10 }, { pattern: /\btu\s+es\b/g, score: 9 },
+          { pattern: /\bil\s+est\b|\belle\s+est\b/g, score: 9 }, { pattern: /\bnous\s+sommes\b/g, score: 10 },
+          { pattern: /\bvous\s+êtes\b/g, score: 10 }, { pattern: /\bils\s+sont\b|\belles\s+sont\b/g, score: 10 },
+          { pattern: /\bc'est\b/g, score: 8 }, { pattern: /\bil\s+y\s+a\b/g, score: 10 },
+          { pattern: /\bj'ai\b/g, score: 10 }, { pattern: /\btu\s+as\b/g, score: 9 },
+          { pattern: /\bil\s+a\b|\belle\s+a\b/g, score: 7 }, { pattern: /\bnous\s+avons\b/g, score: 10 },
+          { pattern: /\bvous\s+avez\b/g, score: 10 }, { pattern: /\bils\s+ont\b/g, score: 10 },
+          { pattern: /\bje\s+sais\b/g, score: 10 }, { pattern: /\bje\s+connais\b/g, score: 10 },
+          { pattern: /\bje\s+ne\s+sais\s+pas\b/g, score: 10 }, { pattern: /\bje\s+vais\b/g, score: 10 },
+          { pattern: /\btu\s+vas\b/g, score: 10 }, { pattern: /\bil\s+va\b|\belle\s+va\b/g, score: 9 },
+          { pattern: /\bnous\s+allons\b/g, score: 10 }, { pattern: /\bvous\s+allez\b/g, score: 10 },
+          { pattern: /\bils\s+vont\b/g, score: 10 }, { pattern: /en\s+train\s+de/g, score: 10 },
+          { pattern: /\bil\s+faut\s+que\b/g, score: 10 }, { pattern: /\bpour\s+que\b/g, score: 8 },
           { pattern: /\bbien\s+que\b/g, score: 8 },
         ]
       },
-
       minimalPairs: {
         weight: 25,
         tokens: [
-          { word: "elle", score: 8 },   // vs ela (PT) vs ella (ES)
-          { word: "elles", score: 8 },
-          { word: "eux", score: 10 },   // exclusive FR disjunctive
-          { word: "leur", score: 9 },
-          { word: "lait", score: 10 },  // vs leite (PT) vs leche (ES)
-          { word: "nuit", score: 10 },  // vs noite (PT) vs noche (ES)
-          { word: "fait", score: 9 },   // vs feito (PT) vs hecho (ES)
-          { word: "droit", score: 9 },  // vs direito (PT) vs derecho (ES)
-          { word: "rouge", score: 10 }, // vs rojo (ES) vs vermelho (PT)
-          { word: "pomme", score: 10 }, // vs manzana (ES) vs maçã (PT)
-          { word: "riz", score: 10 },   // vs arroz (ES/PT)
-          { word: "morue", score: 10 }, // vs bacalhau (PT) vs bacalao (ES)
-          { word: "huile", score: 9 },  // vs aceite (ES) vs azeite (PT)
-          { word: "poivron", score: 10 }, // exclusive FR — little pepper
-          { word: "poulet", score: 9 },
+          { word: "elle", score: 8 }, { word: "elles", score: 8 }, { word: "eux", score: 10 },
+          { word: "leur", score: 9 }, { word: "lait", score: 10 }, { word: "nuit", score: 10 },
+          { word: "fait", score: 9 }, { word: "droit", score: 9 }, { word: "rouge", score: 10 },
+          { word: "pomme", score: 10 }, { word: "riz", score: 10 }, { word: "morue", score: 10 },
+          { word: "huile", score: 9 }, { word: "poivron", score: 10 }, { word: "poulet", score: 9 },
         ]
       },
-
       stopwords: {
         weight: 10,
         tokens: [
@@ -384,31 +325,24 @@ const FINGERPRINTS = {
     launchDate: "June 2026",
     accentColor: "#f59e0b",
     description: "Spain, Latin America & Hispanic world",
-
     searchTerms: [
-      "¿", "¡", "también", "estar", "hace",
-      "nosotros", "vosotros", "ustedes", "naranja", "arroz"
+      "politica españa", "economia latinoamerica", "filosofia",
+      "literatura española", "periodismo", "feminismo", "tecnologia",
+      "historia latinoamerica", "ecologia", "cultura mexico",
     ],
-
     signals: {
       exclusiveChars: {
         weight: 40,
         patterns: [
-          { regex: /ñ/g, score: 10, note: "n tilde — exclusive to ES" },
-          { regex: /¿/g, score: 10, note: "inverted question — exclusive to ES" },
-          { regex: /¡/g, score: 10, note: "inverted exclamation — exclusive to ES" },
-          { regex: /á/g, score: 4 },
-          { regex: /é/g, score: 3 },
-          { regex: /í/g, score: 4 },
-          { regex: /ó/g, score: 4 },
-          { regex: /ú/g, score: 4 },
+          { regex: /ñ/g, score: 10 }, { regex: /¿/g, score: 10 }, { regex: /¡/g, score: 10 },
+          { regex: /á/g, score: 4 }, { regex: /é/g, score: 3 },
+          { regex: /í/g, score: 4 }, { regex: /ó/g, score: 4 }, { regex: /ú/g, score: 4 },
         ]
       },
       charPatterns: {
         weight: 15,
         patterns: [
-          { regex: /ch[aeiou]/g, score: 6, note: "ct->ch resolution — ES (leche, noche)" },
-          { regex: /\blo\s+\w+/g, score: 7, note: "neuter lo — exclusive ES" },
+          { regex: /ch[aeiou]/g, score: 6 }, { regex: /\blo\s+\w+/g, score: 7 },
         ]
       },
       possessives: {
@@ -419,31 +353,23 @@ const FINGERPRINTS = {
           { word: "su", score: 5 }, { word: "sus", score: 6 },
           { word: "nuestro", score: 9 }, { word: "nuestra", score: 9 },
           { word: "nuestros", score: 9 }, { word: "nuestras", score: 9 },
-          { word: "vuestro", score: 10 }, // Peninsular Spanish exclusive
-          { word: "mío", score: 9 }, { word: "mía", score: 9 },
-          { word: "tuyo", score: 9 }, { word: "tuya", score: 9 },
+          { word: "vuestro", score: 10 }, { word: "mío", score: 9 },
+          { word: "mía", score: 9 }, { word: "tuyo", score: 9 }, { word: "tuya", score: 9 },
         ]
       },
       fusedPreps: {
         weight: 15,
-        tokens: [
-          { word: "al", score: 8 },  // a + el — ES exclusive form
-          { word: "del", score: 8 }, // de + el — ES exclusive form
-        ]
+        tokens: [{ word: "al", score: 8 }, { word: "del", score: 8 }]
       },
       negation: {
         weight: 20,
         tokens: [
-          { word: "no", score: 5 },
-          { word: "nunca", score: 6 },
-          { word: "jamás", score: 9 }, // accent on final — ES exclusive
-          { word: "nada", score: 5 },
-          { word: "nadie", score: 8 },
-          { word: "tampoco", score: 9 },
-          { word: "ningún", score: 8 },
+          { word: "no", score: 5 }, { word: "nunca", score: 6 }, { word: "jamás", score: 9 },
+          { word: "nada", score: 5 }, { word: "nadie", score: 8 },
+          { word: "tampoco", score: 9 }, { word: "ningún", score: 8 },
         ],
         patterns: [
-          { regex: /no\s+sé\s+nada/g, score: 10, note: "double negation — ES" },
+          { regex: /no\s+sé\s+nada/g, score: 10 },
           { regex: /no\s+\w+\s+nada/g, score: 8 },
           { regex: /no\s+\w+\s+nunca/g, score: 8 },
         ]
@@ -451,59 +377,28 @@ const FINGERPRINTS = {
       verbPairs: {
         weight: 35,
         pairs: [
-          // TO BE — ser
-          { pattern: /\byo\s+soy\b/g, score: 10 },
-          { pattern: /\btú\s+eres\b/g, score: 10 },
-          { pattern: /\bél\s+es\b|\bella\s+es\b/g, score: 9 },
-          { pattern: /\bnosotros\s+somos\b/g, score: 10 },
-          { pattern: /\bellos\s+son\b|\bellas\s+son\b/g, score: 10 },
-          // TO BE — estar
-          { pattern: /\bestoy\b/g, score: 9 },
-          { pattern: /\bestás\b|\bestá\b/g, score: 8 },
-          { pattern: /\bestamos\b/g, score: 9 },
-          { pattern: /\bestán\b/g, score: 9 },
-          // Ser vs Estar — the philosophical split
-          { pattern: /\bsoy\s+\w+\b/g, score: 7 },
-          { pattern: /\bestoy\s+\w+\b/g, score: 7 },
-          // TO HAVE — tener
-          { pattern: /\byo\s+tengo\b/g, score: 10 },
-          { pattern: /\btú\s+tienes\b/g, score: 10 },
-          { pattern: /\bél\s+tiene\b/g, score: 9 },
-          { pattern: /\btenemos\b/g, score: 9 },
-          // TO KNOW — saber/conocer
-          { pattern: /\byo\s+sé\b/g, score: 9 },
-          { pattern: /\byo\s+conozco\b/g, score: 10 },
-          // TO GO — ir
-          { pattern: /\byo\s+voy\b/g, score: 10 },
-          { pattern: /\btú\s+vas\b/g, score: 9 },
-          { pattern: /\bél\s+va\b/g, score: 7 },
-          { pattern: /\bvamos\b/g, score: 8 },
-          // Gustar construction — exclusive ES phenomenology
+          { pattern: /\byo\s+soy\b/g, score: 10 }, { pattern: /\btú\s+eres\b/g, score: 10 },
+          { pattern: /\bél\s+es\b|\bella\s+es\b/g, score: 9 }, { pattern: /\bnosotros\s+somos\b/g, score: 10 },
+          { pattern: /\bellos\s+son\b|\bellas\s+son\b/g, score: 10 }, { pattern: /\bestoy\b/g, score: 9 },
+          { pattern: /\bestás\b|\bestá\b/g, score: 8 }, { pattern: /\bestamos\b/g, score: 9 },
+          { pattern: /\bestán\b/g, score: 9 }, { pattern: /\byo\s+tengo\b/g, score: 10 },
+          { pattern: /\btú\s+tienes\b/g, score: 10 }, { pattern: /\bél\s+tiene\b/g, score: 9 },
+          { pattern: /\btenemos\b/g, score: 9 }, { pattern: /\byo\s+sé\b/g, score: 9 },
+          { pattern: /\byo\s+conozco\b/g, score: 10 }, { pattern: /\byo\s+voy\b/g, score: 10 },
+          { pattern: /\btú\s+vas\b/g, score: 9 }, { pattern: /\bvamos\b/g, score: 8 },
           { pattern: /\bme\s+gusta\b|\bme\s+gustan\b/g, score: 10 },
-          { pattern: /\bte\s+gusta\b/g, score: 10 },
-          { pattern: /\ble\s+gusta\b/g, score: 9 },
-          // Personal a — exclusive ES
+          { pattern: /\bte\s+gusta\b/g, score: 10 }, { pattern: /\ble\s+gusta\b/g, score: 9 },
           { pattern: /\bveo\s+a\b|\bllamo\s+a\b|\bvisito\s+a\b/g, score: 10 },
         ]
       },
       minimalPairs: {
         weight: 25,
         tokens: [
-          { word: "ella", score: 8 },    // vs ela (PT) vs elle (FR)
-          { word: "ellas", score: 8 },
-          { word: "ellos", score: 9 },
-          { word: "leche", score: 10 },  // vs leite (PT) vs lait (FR)
-          { word: "noche", score: 10 },  // vs noite (PT) vs nuit (FR)
-          { word: "hecho", score: 10 },  // vs feito (PT) vs fait (FR)
-          { word: "naranja", score: 10 }, // vs laranja (PT) — the n/l split
-          { word: "rojo", score: 10 },   // vs vermelho (PT) vs rouge (FR)
-          { word: "manzana", score: 10 }, // vs maçã (PT) vs pomme (FR)
-          { word: "arroz", score: 7 },   // shared with PT
-          { word: "aceite", score: 10 }, // vs azeite (PT) — the c/z split
-          { word: "vosotros", score: 10 }, // Peninsular exclusive
-          { word: "ustedes", score: 8 },
-          { word: "también", score: 8 },
-          { word: "pollo", score: 7 },
+          { word: "ella", score: 8 }, { word: "ellas", score: 8 }, { word: "ellos", score: 9 },
+          { word: "leche", score: 10 }, { word: "noche", score: 10 }, { word: "hecho", score: 10 },
+          { word: "naranja", score: 10 }, { word: "rojo", score: 10 }, { word: "manzana", score: 10 },
+          { word: "arroz", score: 7 }, { word: "aceite", score: 10 }, { word: "vosotros", score: 10 },
+          { word: "ustedes", score: 8 }, { word: "también", score: 8 }, { word: "pollo", score: 7 },
         ]
       },
       stopwords: {
@@ -528,89 +423,87 @@ const FINGERPRINTS = {
     launchDate: "July 2026",
     accentColor: "#ef4444",
     description: "Italy & Italian-speaking world",
-    searchTerms: ["sono", "siamo", "anche", "però", "quindi", "quello", "questa", "arroz", "parmigiano"],
+    searchTerms: [
+      "politica italia", "economia italiana", "filosofia",
+      "letteratura italiana", "giornalismo", "femminismo",
+      "tecnologia italia", "cinema italiano", "storia italia", "ecologia",
+    ],
     signals: {
       exclusiveChars: {
         weight: 40,
         patterns: [
-          { regex: /\bgh/g, score: 7, note: "gh cluster — common IT" },
-          { regex: /\bgli\b/g, score: 9, note: "gli — exclusive IT article" },
-          { regex: /\bche\b/g, score: 6 },
-          { regex: /zione\b/g, score: 8, note: "-zione suffix — IT" },
-          { regex: /ità\b/g, score: 8, note: "-ità suffix — IT" },
-          { regex: /utto\b|\butta\b/g, score: 6 },
+          { regex: /\bgh/g, score: 7 }, { regex: /\bgli\b/g, score: 9 },
+          { regex: /\bche\b/g, score: 6 }, { regex: /zione\b/g, score: 8 },
+          { regex: /ità\b/g, score: 8 }, { regex: /utto\b|\butta\b/g, score: 6 },
         ]
       },
-      charPatterns: { weight: 15, patterns: [
-        { regex: /tt[aeiou]/g, score: 7, note: "ct->tt resolution — IT (latte, notte, fatto)" },
-        { regex: /\bnell[ao]\b|\bdell[ao]\b|\ball[ao]\b/g, score: 9, note: "fused prepositions — IT" },
-      ]},
-      possessives: { weight: 20, tokens: [
-        { word: "mio", score: 9 }, { word: "mia", score: 9 },
-        { word: "miei", score: 9 }, { word: "mie", score: 8 },
-        { word: "tuo", score: 9 }, { word: "tua", score: 8 },
-        { word: "suo", score: 8 }, { word: "sua", score: 7 },
-        { word: "nostro", score: 9 }, { word: "nostra", score: 9 },
-        { word: "vostro", score: 10 }, // exclusive IT form
-        { word: "loro", score: 8 },
-      ]},
-      fusedPreps: { weight: 15, tokens: [
-        { word: "nel", score: 9 }, { word: "nella", score: 9 },
-        { word: "nei", score: 9 }, { word: "nelle", score: 9 },
-        { word: "del", score: 7 }, { word: "della", score: 9 },
-        { word: "dei", score: 8 }, { word: "delle", score: 9 },
-        { word: "al", score: 6 }, { word: "alla", score: 8 },
-        { word: "agli", score: 10 }, // exclusive IT plural form
-        { word: "sul", score: 8 }, { word: "sulla", score: 9 },
-      ]},
-      negation: { weight: 20, tokens: [
-        { word: "non", score: 8 }, // vs no (ES) vs não (PT) vs ne/pas (FR)
-        { word: "mai", score: 7 },
-        { word: "niente", score: 9 },
-        { word: "nessuno", score: 9 },
-        { word: "neanche", score: 9 },
-        { word: "mica", score: 10 }, // informal IT negation — exclusive
-      ], patterns: []},
-      verbPairs: { weight: 35, pairs: [
-        { pattern: /\bio\s+sono\b/g, score: 10 },
-        { pattern: /\btu\s+sei\b/g, score: 10 },
-        { pattern: /\blui\s+è\b|\blei\s+è\b/g, score: 10 },
-        { pattern: /\bnoi\s+siamo\b/g, score: 10 },
-        { pattern: /\bvoi\s+siete\b/g, score: 10 }, // exclusive IT 2nd plural
-        { pattern: /\bloro\s+sono\b/g, score: 10 },
-        { pattern: /\bio\s+ho\b/g, score: 10 },
-        { pattern: /\btu\s+hai\b/g, score: 10 },
-        { pattern: /\bnoi\s+abbiamo\b/g, score: 10 },
-        { pattern: /\bio\s+so\b/g, score: 9 },
-        { pattern: /\bio\s+conosco\b/g, score: 10 },
-        { pattern: /\bio\s+vado\b/g, score: 10 },
-        { pattern: /\bnoi\s+andiamo\b/g, score: 10 },
-        { pattern: /\bc'è\b|\bci\s+sono\b/g, score: 10 }, // there is/are — IT
-      ]},
-      minimalPairs: { weight: 25, tokens: [
-        { word: "lei", score: 8 },  // she/formal you — IT
-        { word: "loro", score: 8 },
-        { word: "latte", score: 10 }, // vs leite/leche/lait — tt resolution
-        { word: "notte", score: 10 }, // vs noite/noche/nuit
-        { word: "fatto", score: 10 }, // vs feito/hecho/fait
-        { word: "olio", score: 10 },  // vs azeite/aceite/huile — stayed Latin
-        { word: "pollo", score: 7 },
-        { word: "mela", score: 10 },  // vs maçã/manzana/pomme — unique
-        { word: "rosso", score: 10 }, // vs vermelho/rojo/rouge
-        { word: "riso", score: 9 },   // vs arroz/riz
-        { word: "però", score: 9 },
-        { word: "quindi", score: 9 },
-        { word: "quello", score: 8 },
-        { word: "anche", score: 7 },
-        { word: "insieme", score: 8 },
-      ]},
-      stopwords: { weight: 10, tokens: [
-        "che", "gli", "dei", "una", "per", "con", "dal", "nel", "sul",
-        "alla", "alle", "sono", "anche", "tutto", "questa", "più", "come",
-        "quando", "stesso", "loro", "mondo", "politica", "cultura",
-        "economia", "storia", "società", "settimana", "sempre", "ancora",
-        "dopo", "prima", "tra", "fra", "però", "quindi", "oppure"
-      ]}
+      charPatterns: {
+        weight: 15,
+        patterns: [
+          { regex: /tt[aeiou]/g, score: 7 },
+          { regex: /\bnell[ao]\b|\bdell[ao]\b|\ball[ao]\b/g, score: 9 },
+        ]
+      },
+      possessives: {
+        weight: 20,
+        tokens: [
+          { word: "mio", score: 9 }, { word: "mia", score: 9 }, { word: "miei", score: 9 },
+          { word: "mie", score: 8 }, { word: "tuo", score: 9 }, { word: "tua", score: 8 },
+          { word: "suo", score: 8 }, { word: "sua", score: 7 },
+          { word: "nostro", score: 9 }, { word: "nostra", score: 9 },
+          { word: "vostro", score: 10 }, { word: "loro", score: 8 },
+        ]
+      },
+      fusedPreps: {
+        weight: 15,
+        tokens: [
+          { word: "nel", score: 9 }, { word: "nella", score: 9 }, { word: "nei", score: 9 },
+          { word: "nelle", score: 9 }, { word: "del", score: 7 }, { word: "della", score: 9 },
+          { word: "dei", score: 8 }, { word: "delle", score: 9 }, { word: "al", score: 6 },
+          { word: "alla", score: 8 }, { word: "agli", score: 10 },
+          { word: "sul", score: 8 }, { word: "sulla", score: 9 },
+        ]
+      },
+      negation: {
+        weight: 20,
+        tokens: [
+          { word: "non", score: 8 }, { word: "mai", score: 7 }, { word: "niente", score: 9 },
+          { word: "nessuno", score: 9 }, { word: "neanche", score: 9 }, { word: "mica", score: 10 },
+        ],
+        patterns: []
+      },
+      verbPairs: {
+        weight: 35,
+        pairs: [
+          { pattern: /\bio\s+sono\b/g, score: 10 }, { pattern: /\btu\s+sei\b/g, score: 10 },
+          { pattern: /\blui\s+è\b|\blei\s+è\b/g, score: 10 }, { pattern: /\bnoi\s+siamo\b/g, score: 10 },
+          { pattern: /\bvoi\s+siete\b/g, score: 10 }, { pattern: /\bloro\s+sono\b/g, score: 10 },
+          { pattern: /\bio\s+ho\b/g, score: 10 }, { pattern: /\btu\s+hai\b/g, score: 10 },
+          { pattern: /\bnoi\s+abbiamo\b/g, score: 10 }, { pattern: /\bio\s+so\b/g, score: 9 },
+          { pattern: /\bio\s+conosco\b/g, score: 10 }, { pattern: /\bio\s+vado\b/g, score: 10 },
+          { pattern: /\bnoi\s+andiamo\b/g, score: 10 }, { pattern: /\bc'è\b|\bci\s+sono\b/g, score: 10 },
+        ]
+      },
+      minimalPairs: {
+        weight: 25,
+        tokens: [
+          { word: "lei", score: 8 }, { word: "loro", score: 8 }, { word: "latte", score: 10 },
+          { word: "notte", score: 10 }, { word: "fatto", score: 10 }, { word: "olio", score: 10 },
+          { word: "pollo", score: 7 }, { word: "mela", score: 10 }, { word: "rosso", score: 10 },
+          { word: "riso", score: 9 }, { word: "però", score: 9 }, { word: "quindi", score: 9 },
+          { word: "quello", score: 8 }, { word: "anche", score: 7 }, { word: "insieme", score: 8 },
+        ]
+      },
+      stopwords: {
+        weight: 10,
+        tokens: [
+          "che", "gli", "dei", "una", "per", "con", "dal", "nel", "sul",
+          "alla", "alle", "sono", "anche", "tutto", "questa", "più", "come",
+          "quando", "stesso", "loro", "mondo", "politica", "cultura",
+          "economia", "storia", "società", "settimana", "sempre", "ancora",
+          "dopo", "prima", "tra", "fra", "però", "quindi", "oppure"
+        ]
+      }
     }
   },
 
@@ -623,98 +516,82 @@ const FINGERPRINTS = {
     launchDate: "August 2026",
     accentColor: "#a855f7",
     description: "Romania & Romanian diaspora — uncharted territory",
-    searchTerms: ["sunt", "este", "avem", "merge", "știu", "acum", "când", "pentru", "despre"],
+    searchTerms: ["politica romania", "economie", "filozofie", "literatura romana", "jurnalism"],
     signals: {
       exclusiveChars: {
         weight: 40,
         patterns: [
-          { regex: /ș/g, score: 10, note: "s with comma below — exclusive to RO" },
-          { regex: /ț/g, score: 10, note: "t with comma below — exclusive to RO" },
-          { regex: /ă/g, score: 9, note: "a breve — exclusive to RO" },
-          { regex: /â/g, score: 7, note: "a circumflex — primarily RO" },
-          { regex: /î/g, score: 7, note: "i circumflex — primarily RO" },
+          { regex: /ș/g, score: 10 }, { regex: /ț/g, score: 10 },
+          { regex: /ă/g, score: 9 }, { regex: /â/g, score: 7 }, { regex: /î/g, score: 7 },
         ]
       },
-      charPatterns: { weight: 15, patterns: [
-        { regex: /\bul\b|\bului\b/g, score: 8, note: "definite article suffix — RO" },
-        { regex: /\bea\b/g, score: 6 },
-        { regex: /ești\b/g, score: 9, note: "-ești suffix — RO" },
-      ]},
-      possessives: { weight: 20, tokens: [
-        { word: "meu", score: 7 }, { word: "mea", score: 8 },
-        { word: "tău", score: 10 }, { word: "ta", score: 6 },
-        { word: "său", score: 10 }, // exclusive RO form with diphthong
-        { word: "sa", score: 5 },
-        { word: "nostru", score: 9 }, { word: "noastră", score: 10 },
-        { word: "vostru", score: 9 }, { word: "voastră", score: 10 },
-        { word: "lor", score: 7 },
-        { word: "dumneavoastră", score: 10 }, // formal you — medieval Latin fossil
-      ]},
-      fusedPreps: { weight: 15, tokens: [
-        { word: "despre", score: 9 },
-        { word: "dintre", score: 9 },
-        { word: "dintr", score: 9 },
-        { word: "într", score: 9 },
-        { word: "printr", score: 9 },
-      ]},
-      negation: { weight: 20, tokens: [
-        { word: "nu", score: 9 },       // primary RO negation — exclusive among Romance
-        { word: "niciodată", score: 10 },
-        { word: "nimic", score: 10 },
-        { word: "nimeni", score: 10 },
-        { word: "nici", score: 8 },
-        { word: "nicio", score: 10 },
-      ], patterns: [
-        { regex: /\bnu\s+\w+/g, score: 8, note: "nu + verb — RO negation pattern" },
-      ]},
-      verbPairs: { weight: 35, pairs: [
-        // TO BE — a fi
-        { pattern: /\beu\s+sunt\b/g, score: 10 },
-        { pattern: /\btu\s+ești\b/g, score: 10 },
-        { pattern: /\bel\s+este\b|\bea\s+este\b/g, score: 10 },
-        { pattern: /\bnoi\s+suntem\b/g, score: 10 },
-        { pattern: /\bvoi\s+sunteți\b/g, score: 10 },
-        { pattern: /\bei\s+sunt\b|\bele\s+sunt\b/g, score: 10 },
-        // TO HAVE — a avea
-        { pattern: /\beu\s+am\b/g, score: 9 },
-        { pattern: /\btu\s+ai\b/g, score: 8 },
-        { pattern: /\bel\s+are\b|\bea\s+are\b/g, score: 9 },
-        { pattern: /\bnoi\s+avem\b/g, score: 10 },
-        { pattern: /\bvoi\s+aveți\b/g, score: 10 },
-        // TO KNOW — a ști
-        { pattern: /\beu\s+știu\b/g, score: 10 },
-        { pattern: /\btu\s+știi\b/g, score: 10 },
-        { pattern: /\bnu\s+știu\b/g, score: 10 },
-        // TO GO — a merge/a se duce
-        { pattern: /\beu\s+merg\b/g, score: 10 },
-        { pattern: /\btu\s+mergi\b/g, score: 10 },
-        { pattern: /\bnoi\s+mergem\b/g, score: 10 },
-        { pattern: /\bmă\s+duc\b/g, score: 10 }, // reflexive go — exclusive RO
-      ]},
-      minimalPairs: { weight: 25, tokens: [
-        { word: "sunt", score: 8 },
-        { word: "este", score: 7 },
-        { word: "care", score: 7 },
-        { word: "când", score: 8 },
-        { word: "după", score: 9 },
-        { word: "înainte", score: 9 },
-        { word: "portocală", score: 10 }, // orange = Portugal — the etymology fossil
-        { word: "lapte", score: 10 },  // milk — closest to Latin lactem of all
-        { word: "noapte", score: 10 }, // night — closest to Latin noctem
-        { word: "roșu", score: 10 },   // red — exclusive RO form
-        { word: "merge", score: 8 },
-        { word: "acum", score: 8 },
-        { word: "aici", score: 8 },
-        { word: "foarte", score: 9 },  // very — exclusive RO
-        { word: "bine", score: 6 },
-      ]},
-      stopwords: { weight: 10, tokens: [
-        "că", "și", "în", "cu", "de", "la", "pe", "din", "care", "este",
-        "sunt", "mai", "pentru", "sau", "dar", "dacă", "când", "cum",
-        "tot", "această", "lumea", "politică", "cultură", "economie",
-        "istorie", "societate", "săptămână", "după", "înainte", "între",
-        "mereu", "niciodată", "încă", "deja", "acum", "aici", "acolo"
-      ]}
+      charPatterns: {
+        weight: 15,
+        patterns: [
+          { regex: /\bul\b|\bului\b/g, score: 8 }, { regex: /\bea\b/g, score: 6 },
+          { regex: /ești\b/g, score: 9 },
+        ]
+      },
+      possessives: {
+        weight: 20,
+        tokens: [
+          { word: "meu", score: 7 }, { word: "mea", score: 8 }, { word: "tău", score: 10 },
+          { word: "ta", score: 6 }, { word: "său", score: 10 }, { word: "sa", score: 5 },
+          { word: "nostru", score: 9 }, { word: "noastră", score: 10 },
+          { word: "vostru", score: 9 }, { word: "voastră", score: 10 },
+          { word: "lor", score: 7 }, { word: "dumneavoastră", score: 10 },
+        ]
+      },
+      fusedPreps: {
+        weight: 15,
+        tokens: [
+          { word: "despre", score: 9 }, { word: "dintre", score: 9 },
+          { word: "dintr", score: 9 }, { word: "într", score: 9 }, { word: "printr", score: 9 },
+        ]
+      },
+      negation: {
+        weight: 20,
+        tokens: [
+          { word: "nu", score: 9 }, { word: "niciodată", score: 10 },
+          { word: "nimic", score: 10 }, { word: "nimeni", score: 10 },
+          { word: "nici", score: 8 }, { word: "nicio", score: 10 },
+        ],
+        patterns: [{ regex: /\bnu\s+\w+/g, score: 8 }]
+      },
+      verbPairs: {
+        weight: 35,
+        pairs: [
+          { pattern: /\beu\s+sunt\b/g, score: 10 }, { pattern: /\btu\s+ești\b/g, score: 10 },
+          { pattern: /\bel\s+este\b|\bea\s+este\b/g, score: 10 }, { pattern: /\bnoi\s+suntem\b/g, score: 10 },
+          { pattern: /\bvoi\s+sunteți\b/g, score: 10 }, { pattern: /\bei\s+sunt\b|\bele\s+sunt\b/g, score: 10 },
+          { pattern: /\beu\s+am\b/g, score: 9 }, { pattern: /\btu\s+ai\b/g, score: 8 },
+          { pattern: /\bel\s+are\b|\bea\s+are\b/g, score: 9 }, { pattern: /\bnoi\s+avem\b/g, score: 10 },
+          { pattern: /\bvoi\s+aveți\b/g, score: 10 }, { pattern: /\beu\s+știu\b/g, score: 10 },
+          { pattern: /\btu\s+știi\b/g, score: 10 }, { pattern: /\bnu\s+știu\b/g, score: 10 },
+          { pattern: /\beu\s+merg\b/g, score: 10 }, { pattern: /\btu\s+mergi\b/g, score: 10 },
+          { pattern: /\bnoi\s+mergem\b/g, score: 10 }, { pattern: /\bmă\s+duc\b/g, score: 10 },
+        ]
+      },
+      minimalPairs: {
+        weight: 25,
+        tokens: [
+          { word: "sunt", score: 8 }, { word: "este", score: 7 }, { word: "care", score: 7 },
+          { word: "când", score: 8 }, { word: "după", score: 9 }, { word: "înainte", score: 9 },
+          { word: "portocală", score: 10 }, { word: "lapte", score: 10 }, { word: "noapte", score: 10 },
+          { word: "roșu", score: 10 }, { word: "merge", score: 8 }, { word: "acum", score: 8 },
+          { word: "aici", score: 8 }, { word: "foarte", score: 9 }, { word: "bine", score: 6 },
+        ]
+      },
+      stopwords: {
+        weight: 10,
+        tokens: [
+          "că", "și", "în", "cu", "de", "la", "pe", "din", "care", "este",
+          "sunt", "mai", "pentru", "sau", "dar", "dacă", "când", "cum",
+          "tot", "această", "lumea", "politică", "cultură", "economie",
+          "istorie", "societate", "săptămână", "după", "înainte", "între",
+          "mereu", "niciodată", "încă", "deja", "acum", "aici", "acolo"
+        ]
+      }
     }
   },
 
@@ -722,20 +599,38 @@ const FINGERPRINTS = {
     code: "de", label: "Deutsch", flag: "🇩🇪", family: "Germanic",
     launched: false, launchDate: "September 2026", accentColor: "#6b7280",
     description: "Germany, Austria & German-speaking world",
-    searchTerms: [], signals: { exclusiveChars: { weight: 40, patterns: [
-      { regex: /ß/g, score: 10, note: "eszett — exclusive to DE" },
-      { regex: /ü/g, score: 7 }, { regex: /ö/g, score: 7 }, { regex: /ä/g, score: 6 },
-    ]}, charPatterns: { weight: 15, patterns: [] },
-    possessives: { weight: 20, tokens: [] }, fusedPreps: { weight: 15, tokens: [] },
-    negation: { weight: 20, tokens: [{ word: "nicht", score: 10 }, { word: "kein", score: 9 }], patterns: [] },
-    verbPairs: { weight: 35, pairs: [
-      { pattern: /\bich\s+bin\b/g, score: 10 }, { pattern: /\bwir\s+sind\b/g, score: 10 },
-      { pattern: /\bich\s+habe\b/g, score: 10 }, { pattern: /\bich\s+weiß\b/g, score: 10 },
-    ]},
-    minimalPairs: { weight: 25, tokens: [
-      { word: "nicht", score: 10 }, { word: "auch", score: 7 }, { word: "aber", score: 7 },
-    ]},
-    stopwords: { weight: 10, tokens: ["der", "die", "das", "und", "ist", "ich", "wir", "sie", "nicht", "aber", "auch"] }
+    searchTerms: ["politik deutschland", "wirtschaft", "philosophie", "literatur deutsch", "journalismus"],
+    signals: {
+      exclusiveChars: {
+        weight: 40,
+        patterns: [
+          { regex: /ß/g, score: 10 }, { regex: /ü/g, score: 7 },
+          { regex: /ö/g, score: 7 }, { regex: /ä/g, score: 6 },
+        ]
+      },
+      charPatterns: { weight: 15, patterns: [] },
+      possessives: { weight: 20, tokens: [] },
+      fusedPreps: { weight: 15, tokens: [] },
+      negation: {
+        weight: 20,
+        tokens: [{ word: "nicht", score: 10 }, { word: "kein", score: 9 }],
+        patterns: []
+      },
+      verbPairs: {
+        weight: 35,
+        pairs: [
+          { pattern: /\bich\s+bin\b/g, score: 10 }, { pattern: /\bwir\s+sind\b/g, score: 10 },
+          { pattern: /\bich\s+habe\b/g, score: 10 }, { pattern: /\bich\s+weiß\b/g, score: 10 },
+        ]
+      },
+      minimalPairs: {
+        weight: 25,
+        tokens: [{ word: "nicht", score: 10 }, { word: "auch", score: 7 }, { word: "aber", score: 7 }]
+      },
+      stopwords: {
+        weight: 10,
+        tokens: ["der", "die", "das", "und", "ist", "ich", "wir", "sie", "nicht", "aber", "auch"]
+      }
     }
   },
 
@@ -743,14 +638,19 @@ const FINGERPRINTS = {
     code: "ar", label: "العربية", flag: "🇲🇦", family: "Semitic",
     launched: false, launchDate: "October 2026", accentColor: "#6b7280",
     description: "Arab world & MENA region",
-    searchTerms: [], signals: { exclusiveChars: { weight: 40, patterns: [
-      { regex: /[\u0600-\u06FF]/g, score: 10, note: "Arabic script — exclusive" },
-    ]}, charPatterns: { weight: 15, patterns: [] },
-    possessives: { weight: 20, tokens: [] }, fusedPreps: { weight: 15, tokens: [] },
-    negation: { weight: 20, tokens: [], patterns: [] },
-    verbPairs: { weight: 35, pairs: [] },
-    minimalPairs: { weight: 25, tokens: [] },
-    stopwords: { weight: 10, tokens: [] }
+    searchTerms: ["سياسة", "اقتصاد", "فلسفة", "أدب عربي", "صحافة"],
+    signals: {
+      exclusiveChars: {
+        weight: 40,
+        patterns: [{ regex: /[\u0600-\u06FF]/g, score: 10 }]
+      },
+      charPatterns: { weight: 15, patterns: [] },
+      possessives: { weight: 20, tokens: [] },
+      fusedPreps: { weight: 15, tokens: [] },
+      negation: { weight: 20, tokens: [], patterns: [] },
+      verbPairs: { weight: 35, pairs: [] },
+      minimalPairs: { weight: 25, tokens: [] },
+      stopwords: { weight: 10, tokens: [] }
     }
   },
 };
@@ -766,7 +666,6 @@ function runFingerprint(text, lang) {
   let totalWeight = 0;
   const s = lang.signals;
 
-  // Layer 1 — Exclusive chars
   if (s.exclusiveChars) {
     let layerScore = 0;
     s.exclusiveChars.patterns.forEach(({ regex, score }) => {
@@ -777,7 +676,6 @@ function runFingerprint(text, lang) {
     totalWeight += s.exclusiveChars.weight;
   }
 
-  // Layer 2 — Char patterns
   if (s.charPatterns) {
     let layerScore = 0;
     s.charPatterns.patterns.forEach(({ regex, score }) => {
@@ -788,7 +686,6 @@ function runFingerprint(text, lang) {
     totalWeight += s.charPatterns.weight;
   }
 
-  // Layer 3 — Possessives
   if (s.possessives?.tokens?.length) {
     let layerScore = 0;
     s.possessives.tokens.forEach(({ word, score }) => {
@@ -799,7 +696,6 @@ function runFingerprint(text, lang) {
     totalWeight += s.possessives.weight;
   }
 
-  // Layer 4 — Fused preps
   if (s.fusedPreps?.tokens?.length) {
     let layerScore = 0;
     s.fusedPreps.tokens.forEach(({ word, score }) => {
@@ -810,7 +706,6 @@ function runFingerprint(text, lang) {
     totalWeight += s.fusedPreps.weight;
   }
 
-  // Layer 5 — Negation
   if (s.negation) {
     let layerScore = 0;
     (s.negation.tokens || []).forEach(({ word, score }) => {
@@ -824,7 +719,6 @@ function runFingerprint(text, lang) {
     totalWeight += s.negation.weight;
   }
 
-  // Layer 6 — Verb pairs
   if (s.verbPairs?.pairs?.length) {
     let layerScore = 0;
     s.verbPairs.pairs.forEach(({ pattern, score }) => {
@@ -835,7 +729,6 @@ function runFingerprint(text, lang) {
     totalWeight += s.verbPairs.weight;
   }
 
-  // Layer 7 — Minimal pairs
   if (s.minimalPairs?.tokens?.length) {
     let layerScore = 0;
     s.minimalPairs.tokens.forEach(({ word, score }) => {
@@ -846,7 +739,6 @@ function runFingerprint(text, lang) {
     totalWeight += s.minimalPairs.weight;
   }
 
-  // Layer 8 — Stopwords
   if (s.stopwords?.tokens?.length) {
     const hits = words.filter(w => s.stopwords.tokens.includes(w)).length;
     const ratio = hits / Math.max(words.length, 1);
@@ -854,10 +746,32 @@ function runFingerprint(text, lang) {
     totalWeight += s.stopwords.weight;
   }
 
+  // Layer 9 — Everyday vocabulary
+  if (s.everydayVocab?.tokens?.length) {
+    let layerScore = 0;
+    s.everydayVocab.tokens.forEach(({ word, score }) => {
+      const re = new RegExp(`\b${word}\b`, "gi");
+      if (re.test(t)) layerScore += score;
+    });
+    totalScore += Math.min(layerScore / 25, 1) * s.everydayVocab.weight;
+    totalWeight += s.everydayVocab.weight;
+  }
+
+  // Layer 10 — Prefix & suffix patterns (PT-exclusive morphology)
+  if (s.affixPatterns?.patterns?.length) {
+    let layerScore = 0;
+    s.affixPatterns.patterns.forEach(({ regex, score }) => {
+      const re = new RegExp(regex.source, "gi");
+      const matches = (t.match(re) || []).length;
+      layerScore += Math.min(matches * score, score * 3);
+    });
+    totalScore += Math.min(layerScore / 30, 1) * s.affixPatterns.weight;
+    totalWeight += s.affixPatterns.weight;
+  }
+
   return totalWeight > 0 ? totalScore / totalWeight : 0;
 }
 
-// Run all languages and return ranked results
 function identifyLanguage(text) {
   const scores = Object.values(FINGERPRINTS).map(lang => ({
     lang,
@@ -868,15 +782,137 @@ function identifyLanguage(text) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUBSTACK API — with full diagnostic instrumentation
+// CEFR SCORING ENGINE
 // ─────────────────────────────────────────────────────────────────────────────
+const CEFR_SIGNALS = {
+  pt: {
+    A1: {
+      patterns: [/\beu sou\b|\btu és\b|\bele é\b|\bela é\b/gi, /\beu tenho\b|\bele tem\b/gi, /\beu vou\b|\bele vai\b/gi, /\bnão\b/gi],
+      tokens: ["meu", "minha", "seu", "sua", "do", "da", "de", "e", "ou", "mas"],
+    },
+    A2: {
+      patterns: [/\bporque\b|\bquando\b|\bse\b/gi, /\bao\b|\bpelo\b|\bpela\b|\bnum\b|\bnuma\b/gi],
+      tokens: ["também", "ainda", "já", "este", "esse", "aquele", "sempre", "depois", "antes"],
+    },
+    B1: {
+      patterns: [/\bestou\s+\w+ando\b|\bestou\s+\w+endo\b/gi, /\bpara que\b|\bantes que\b|\bembora\b/gi, /\beu quero que\b|\bespero que\b/gi],
+      tokens: ["ninguém", "nada", "nunca", "apesar", "porém", "contudo"],
+    },
+    B2: {
+      patterns: [/\bse eu fosse\b|\bse ele fosse\b/gi, /\bapesar de\b|\bno entanto\b|\bportanto\b/gi, /\bter\s+\w+ado\b|\bter\s+\w+ido\b/gi, /\bo qual\b|\ba qual\b|\bcujo\b/gi],
+      tokens: ["conquanto", "outrossim", "tampouco", "todavia"],
+    },
+    C1: {
+      patterns: [/\bpara\s+\w+armos\b|\bpara\s+\w+ermos\b/gi, /\bquando\s+você\s+tiver\b/gi],
+      tokens: ["conquanto", "outrossim", "porquanto", "dessarte", "malgrado"],
+    },
+    C2: {
+      patterns: [/\bdar-te-ei\b|\blevar-nos-ia\b|\bdir-lhe-ei\b/gi, /\bvossa mercê\b/gi],
+      tokens: ["outrossim", "destarte", "dessarte", "malgrado", "conquanto"],
+    },
+  },
+  fr: {
+    A1: {
+      patterns: [/\bje suis\b|\btu es\b|\bil est\b|\belle est\b/gi, /\bj'ai\b|\btu as\b|\bil a\b/gi, /\bje vais\b|\btu vas\b/gi, /\bil y a\b/gi, /\bne\s+\w+\s+pas\b/gi],
+      tokens: ["mon", "ma", "mes", "ton", "ta", "et", "ou", "mais"],
+    },
+    A2: {
+      patterns: [/\bparce que\b|\bquand\b/gi, /\best-ce que\b/gi, /\bau\b|\baux\b|\bdu\b/gi],
+      tokens: ["aussi", "encore", "déjà", "toujours", "ce", "cette", "ces"],
+    },
+    B1: {
+      patterns: [/\ben train de\b/gi, /\bsais pas\b|\bveux pas\b|\bpeux pas\b/gi, /\bil faut que\b/gi, /\bbien que\b|\bpour que\b/gi, /\w+-vous\b|\w+-tu\b|\w+-il\b/gi],
+      tokens: ["mien", "tien", "sien", "leur", "eux", "elles"],
+    },
+    B2: {
+      patterns: [/\bbien que\s+\w+\s+soit\b/gi, /\bje serais\b|\bil aurait\b/gi, /\bne\s+\w+\s+que\b/gi, /\blequel\b|\bauquel\b|\bduquel\b/gi],
+      tokens: ["mienne", "tienne", "sienne", "néanmoins", "toutefois"],
+    },
+    C1: {
+      patterns: [/\bbien qu'il ait été\b/gi, /\bj'aurais voulu\b|\bil serait venu\b/gi],
+      tokens: ["nonobstant", "néanmoins", "partant", "certes", "voire"],
+    },
+    C2: {
+      patterns: [/\bqu'il fût\b|\bpour qu'elle eût\b/gi, /\bcraignant qu'il ne\b/gi],
+      tokens: ["voire", "certes", "force est", "nonobstant", "partant"],
+    },
+  },
+  es: {
+    A1: {
+      patterns: [/\byo soy\b|\btú eres\b|\bél es\b/gi, /\byo estoy\b|\bél está\b/gi, /\byo tengo\b|\bél tiene\b/gi, /¿|¡/g],
+      tokens: ["mi", "tu", "su", "al", "del", "y", "o", "pero"],
+    },
+    A2: {
+      patterns: [/\bporque\b|\bcuando\b/gi, /\bme gusta\b|\bme gustan\b/gi],
+      tokens: ["también", "todavía", "ya", "este", "ese", "aquel"],
+    },
+    B1: {
+      patterns: [/\bme gusta\b|\bme duele\b|\bme encanta\b/gi, /\bvoy a\s+\w+/gi, /\bno\s+\w+\s+nada\b|\bno\s+\w+\s+nunca\b/gi],
+      tokens: ["aunque", "jamás", "tampoco", "ningún"],
+    },
+    B2: {
+      patterns: [/\bsi yo tuviera\b|\bsi él tuviera\b/gi, /\bpara que puedas\b|\baunque sea\b/gi, /\bcuyo\b|\bel cual\b|\bla cual\b/gi],
+      tokens: ["no obstante", "sin embargo", "a pesar", "cuyo"],
+    },
+    C1: {
+      patterns: [/\bhubiera sido\b|\bhubiese sido\b/gi, /\bde haberlo\b/gi, /\bacaso\b|\bquizás\b/gi],
+      tokens: ["acaso", "quizás", "no obstante", "asimismo", "por ende"],
+    },
+    C2: {
+      patterns: [/\bbusco alguien que\s+\w+a\b/gi, /\bvos tenés\b|\bvos sos\b/gi],
+      tokens: ["voseo", "vos", "destarte", "empero", "mas"],
+    },
+  },
+  ro: {
+    A1: {
+      patterns: [/\beu sunt\b|\btu ești\b|\bel este\b/gi, /\beu am\b|\btu ai\b/gi, /\bnu\s+\w+/gi],
+      tokens: ["meu", "mea", "și", "dar", "sau"],
+    },
+    A2: {
+      patterns: [/\bam fost\b|\bam avut\b/gi, /\bpentru că\b|\bcând\b|\bdacă\b/gi],
+      tokens: ["acest", "această", "acesta", "aceasta"],
+    },
+    B1: {
+      patterns: [/\baș vrea\b|\bar fi\b/gi, /\bsă\s+\w+/gi, /\bdeși\b|\bchiar dacă\b/gi],
+      tokens: ["portocală", "deși", "totuși", "însă"],
+    },
+    B2: { patterns: [/\bsă fi fost\b/gi, /\bcu toate că\b/gi], tokens: ["dumneavoastră", "cu toate că"] },
+    C1: { patterns: [/\bdumneavoastră\b/gi], tokens: ["dumneavoastră", "domnia", "binevoiți"] },
+    C2: { patterns: [], tokens: ["arhaic", "moldovenesc"] },
+  },
+};
 
-// Failure modes we distinguish:
-// CORS      — TypeError, fetch never reached server, sandbox/browser blocked it
-// RATE_429  — server responded 429, we're being throttled
-// TIMEOUT   — fetch hung past our threshold, ambiguous cause
-// HTTP_ERR  — any other non-ok status (403, 500, etc)
-// SUCCESS   — got data back
+const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
+const CEFR_COLORS = { A1: "#4ade80", A2: "#86efac", B1: "#60a5fa", B2: "#3b82f6", C1: "#f59e0b", C2: "#ef4444" };
+const CEFR_LABELS = { A1: "Beginner", A2: "Elementary", B1: "Intermediate", B2: "Upper Intermediate", C1: "Advanced", C2: "Mastery" };
+
+function scoreCEFR(text, langCode) {
+  const signals = CEFR_SIGNALS[langCode];
+  if (!text || !signals) return null;
+  let highestLevel = "A1";
+  let highestScore = 0;
+  const levelScores = {};
+  CEFR_LEVELS.forEach(level => {
+    const s = signals[level];
+    if (!s) return;
+    let score = 0;
+    (s.patterns || []).forEach(regex => {
+      const re = new RegExp(regex.source, "gi");
+      score += (text.match(re) || []).length * 3;
+    });
+    const words = text.toLowerCase().split(/\s+/);
+    (s.tokens || []).forEach(token => { if (words.includes(token.toLowerCase())) score += 1; });
+    levelScores[level] = score;
+    if (score > highestScore) { highestScore = score; highestLevel = level; }
+  });
+  if (highestScore === 0) return null;
+  return { level: highestLevel, score: highestScore, allScores: levelScores };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SUBSTACK API — improved parsing: extracts ALL authors from results
+// including pulling from subscriptions of matched profiles
+// ─────────────────────────────────────────────────────────────────────────────
 
 const FETCH_TIMEOUT_MS = 8000;
 
@@ -893,26 +929,45 @@ async function fetchWithTimeout(url, options) {
   }
 }
 
-async function fetchSubstackResults(lang, onDiagnostic) {
+// Extract a clean publication object from a Substack profile result
+function extractPub(p) {
+  const pub = p.publicationUsers?.[0]?.publication;
+  if (!pub) return null;
+  return {
+    id: pub.id,
+    subdomain: pub.subdomain || p.handle,
+    name: pub.name || p.name,
+    description: pub.hero_text || p.bio || "",
+    logoUrl: pub.logo_url || p.photo_url || null,
+    roughNumFreeSubscribers: p.rough_num_free_subscribers_int || null,
+    authorName: p.name,
+    language: pub.language || null,
+    paymentsState: pub.payments_state || null,
+    customDomain: pub.custom_domain || null,
+  };
+}
+
+async function fetchSubstackResults(lang, onDiagnostic, selectedCategories = []) {
   const results = new Map();
-  const terms = lang.searchTerms.slice(0, 5);
+  // Build term list from selected categories, or fall back to default searchTerms
+  let terms = [];
+  if (selectedCategories.length > 0 && lang.categoryTerms) {
+    selectedCategories.forEach(cat => {
+      (lang.categoryTerms[cat] || []).forEach(t => { if (!terms.includes(t)) terms.push(t); });
+    });
+  }
+  if (terms.length === 0) terms = lang.searchTerms || [];
+  terms = terms.slice(0, 12);
   const diagnostics = [];
 
   await Promise.allSettled(
     terms.map(async (term) => {
       const start = Date.now();
-      const entry = {
-        term,
-        status: null,
-        mode: null,       // CORS | RATE_429 | TIMEOUT | HTTP_ERR | SUCCESS
-        retryAfter: null, // populated if 429 includes Retry-After header
-        count: 0,
-        ms: 0,
-      };
+      const entry = { term, status: null, mode: null, retryAfter: null, count: 0, ms: 0 };
 
       try {
         const res = await fetchWithTimeout(
-          `https://substack.com/api/v1/publication/search?query=${encodeURIComponent(term)}&page=0&limit=20`,
+          `https://marginal-pilgrims-tools.vercel.app/api/search?query=${encodeURIComponent(term)}`,
           { headers: { Accept: "application/json", "User-Agent": "Mozilla/5.0" } }
         );
 
@@ -921,44 +976,40 @@ async function fetchSubstackResults(lang, onDiagnostic) {
 
         if (res.status === 429) {
           entry.mode = "RATE_429";
-          // Substack may or may not send Retry-After
           const retryAfter = res.headers.get("Retry-After") || res.headers.get("X-RateLimit-Reset");
           entry.retryAfter = retryAfter ? `${retryAfter}s` : "unknown";
         } else if (!res.ok) {
           entry.mode = "HTTP_ERR";
         } else {
           const data = await res.json();
-          const pubs = data.publications || data.results || [];
-          entry.count = pubs.length;
-          entry.mode = "SUCCESS";
-          pubs.forEach(p => {
-            const key = p.subdomain || p.id;
-            if (key && !results.has(key)) results.set(key, p);
+
+          // PRIMARY: extract profile search results (newsletter authors)
+          const profileResults = (data.items || [])
+            .filter(item => item.type === "profileSearchResults")
+            .flatMap(item => item.results || []);
+
+          profileResults.forEach(p => {
+            const pub = extractPub(p);
+            if (pub && !results.has(pub.subdomain)) {
+              results.set(pub.subdomain, pub);
+            }
           });
+
+          entry.count = profileResults.length;
+          entry.mode = "SUCCESS";
         }
       } catch (e) {
         entry.ms = Date.now() - start;
-        if (e.name === "AbortError") {
-          entry.mode = "TIMEOUT";
-          entry.status = "—";
-        } else if (e.name === "TypeError") {
-          // TypeError on fetch = network error before reaching server
-          // In browser sandbox this is always CORS
-          entry.mode = "CORS";
-          entry.status = "—";
-        } else {
-          entry.mode = "HTTP_ERR";
-          entry.status = "—";
-        }
+        if (e.name === "AbortError") { entry.mode = "TIMEOUT"; entry.status = "—"; }
+        else if (e.name === "TypeError") { entry.mode = "CORS"; entry.status = "—"; }
+        else { entry.mode = "HTTP_ERR"; entry.status = "—"; }
       }
 
       diagnostics.push(entry);
-      // Stream updates as each term resolves
       if (onDiagnostic) onDiagnostic([...diagnostics]);
     })
   );
 
-  // Summarize failure mode across all terms
   const modes = diagnostics.map(d => d.mode);
   let globalMode = "SUCCESS";
   if (modes.every(m => m === "CORS")) globalMode = "CORS";
@@ -968,22 +1019,54 @@ async function fetchSubstackResults(lang, onDiagnostic) {
   else if (modes.some(m => m === "CORS")) globalMode = "PARTIAL_CORS";
   else if (modes.some(m => m === "RATE_429")) globalMode = "PARTIAL_429";
 
-  return {
-    pubs: Array.from(results.values()),
-    diagnostics,
-    globalMode,
-  };
+  return { pubs: Array.from(results.values()), diagnostics, globalMode };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AI SCORING
 // ─────────────────────────────────────────────────────────────────────────────
-async function getAiScores(pubs, lang) {
-  const input = pubs.slice(0, 10).map((p, i) =>
-    `${i + 1}. "${p.name}": ${(p.description || "no description").slice(0, 150)}`
-  ).join("\n");
+// Fetch the first post subtitle/body snippet for a newsletter to enrich fingerprinting
+async function fetchFirstPostText(subdomain) {
+  try {
+    const postRes = await fetch(
+      `https://marginal-pilgrims-tools.vercel.app/api/posts?subdomain=${encodeURIComponent(subdomain)}`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!postRes.ok) return "";
+    const data = await postRes.json();
+    // New format: { text, source } from about page scraper
+    if (data.text) return data.text;
+    // Fallback: old posts array format
+    const posts = data.posts || data || [];
+    return posts.slice(0, 3).map(p =>
+      [p.title || "", p.subtitle || "", p.description || ""].join(" ")
+    ).join(" ");
+  } catch (e) {
+    return "";
+  }
+}
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+// Enrich top N pubs with first post text — run in parallel
+async function enrichWithPostText(pubs, n = 10) {
+  const top = pubs.slice(0, n);
+  const texts = await Promise.all(
+    top.map(p => fetchFirstPostText(p.subdomain || ""))
+  );
+  return pubs.map((p, i) => ({
+    ...p,
+    postText: i < n ? (texts[i] || "") : "",
+  }));
+}
+
+async function getAiScores(pubs, lang) {
+  const input = pubs.slice(0, 15).map((p, i) => {
+    const desc = (p.description || "no description").slice(0, 150);
+    const post = (p.postText || "").slice(0, 200);
+    const extra = post ? ` | About page: ${post}` : "";
+    return `${i + 1}. "${p.name}": ${desc}${extra}`;
+  }).join("\n");
+
+  const res = await fetch("https://marginal-pilgrims-tools.vercel.app/api/ai-score", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -996,7 +1079,7 @@ async function getAiScores(pubs, lang) {
 Return ONLY a JSON array — no markdown, no preamble. One object per newsletter, same order:
 { "score": 1-10, "niche": "2-3 word niche", "why": "one sharp editorial sentence in English", "language_confidence": "high|medium|low" }
 
-Score 10 = clearly ${lang.label}, strong distinct niche, active. Score 1 = English or irrelevant.
+Score 10 = clearly ${lang.label}-language content, strong distinct niche, active. Score 1 = English or irrelevant.
 language_confidence = how certain this is actually ${lang.label}-language content.
 
 Newsletters:
@@ -1006,9 +1089,12 @@ ${input}`
   });
 
   const data = await res.json();
-  const text = data.content?.find(b => b.type === "text")?.text || "[]";
-  try { return JSON.parse(text.replace(/```json|```/g, "").trim()); }
-  catch { return []; }
+  if (data.error) { console.error("Claude API error:", data.error); return []; }
+  const textBlock = data.content?.find(b => b.type === "text");
+  if (!textBlock) return [];
+  const raw = textBlock.text.replace(/```json|```/g, "").trim();
+  try { return JSON.parse(raw); }
+  catch (e) { console.error("JSON parse failed:", e.message); return []; }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1030,13 +1116,15 @@ function ScoreDots({ score, color }) {
 }
 
 function LangScore({ scores, color }) {
-  const top = scores.slice(0, 3);
+  // Only show secondary flags if they're within 15 points of the top score
+  const top = scores[0]?.score || 0;
+  const visible = scores.filter(({ score }) => score > 0.15 && (top - score) < 0.15);
   return (
     <div style={{ display: "flex", gap: 6 }}>
-      {top.map(({ lang, score }) => score > 0.15 && (
+      {visible.map(({ lang, score }) => (
         <span key={lang.code} style={{
           fontSize: 9, fontFamily: "monospace",
-          color: score > 0.5 ? color : "#888",
+          color: score > 0.5 ? color : "#444",
           letterSpacing: "0.06em",
         }}>
           {lang.flag}{Math.round(score * 100)}
@@ -1046,14 +1134,16 @@ function LangScore({ scores, color }) {
   );
 }
 
-function NewsletterCard({ pub, aiData, lang, index, fingerprintScores }) {
+function NewsletterCard({ pub, aiData, lang, index, fingerprintScores, cefrData }) {
   const [hovered, setHovered] = useState(false);
   const score = aiData?.score || 0;
-  const subs = pub.roughNumFreeSubscribers || pub.freeSubscriberCount || null;
+  const subs = pub.roughNumFreeSubscribers || null;
   const url = pub.customDomain ? `https://${pub.customDomain}` : `https://${pub.subdomain}.substack.com`;
   const fingerScore = fingerprintScores?.[0]?.score || 0;
   const confidence = fingerScore > 0.6 ? "high" : fingerScore > 0.3 ? "medium" : "low";
-  const confColor = { high: lang.accentColor, medium: "#888", low: "#888" };
+  const confColor = { high: lang.accentColor, medium: "#888", low: "#444" };
+  const cefrLevel = cefrData?.level;
+  const cefrColor = cefrLevel ? CEFR_COLORS[cefrLevel] : null;
 
   return (
     <div
@@ -1061,8 +1151,10 @@ function NewsletterCard({ pub, aiData, lang, index, fingerprintScores }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         background: hovered ? "#111" : "#0c0c0c",
-        border: `1px solid ${hovered ? "#222" : "#141414"}`,
-        borderLeft: `3px solid ${score >= 7 ? lang.accentColor : score >= 4 ? "#333" : "#141414"}`,
+        borderTop: `1px solid ${hovered ? "#222" : "#141414"}`,
+        borderRight: `1px solid ${hovered ? "#222" : "#141414"}`,
+        borderBottom: `1px solid ${hovered ? "#222" : "#141414"}`,
+        borderLeft: `3px solid ${score >= 7 ? lang.accentColor : score >= 4 ? "#555" : "#1e1e1e"}`,
         borderRadius: 2, padding: "18px 22px", marginBottom: 2,
         transition: "all 0.2s ease",
         animation: "fadeUp 0.4s ease both",
@@ -1079,17 +1171,29 @@ function NewsletterCard({ pub, aiData, lang, index, fingerprintScores }) {
             <div style={{ fontSize: 15, fontWeight: 600, color: "#f0ebe3", fontFamily: "'Georgia', serif", marginBottom: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {pub.name || "Untitled"}
             </div>
-            <div style={{ fontSize: 10, color: "#333", fontFamily: "monospace" }}>@{pub.subdomain || "—"}</div>
+            <div style={{ fontSize: 10, color: "#777", fontFamily: "monospace" }}>@{pub.subdomain || "—"}</div>
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
           {fingerprintScores && <LangScore scores={fingerprintScores} color={lang.accentColor} />}
-          <span style={{
-            fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase",
-            color: confColor[confidence], fontFamily: "monospace",
-          }}>
-            {confidence === "high" ? "✓" : confidence === "medium" ? "~" : "?"} {aiData?.niche || confidence}
-          </span>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            {cefrLevel && (
+              <span style={{
+                fontSize: 10, fontFamily: "monospace", fontWeight: 700,
+                padding: "2px 7px", borderRadius: 2,
+                background: `${cefrColor}22`, color: cefrColor,
+                border: `1px solid ${cefrColor}44`, letterSpacing: "0.08em",
+              }}>
+                {cefrLevel}
+              </span>
+            )}
+            <span style={{
+              fontSize: 9, letterSpacing: "0.1em", textTransform: "uppercase",
+              color: confColor[confidence], fontFamily: "monospace",
+            }}>
+              {confidence === "high" ? "✓" : confidence === "medium" ? "~" : "?"} {aiData?.niche || confidence}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -1097,18 +1201,18 @@ function NewsletterCard({ pub, aiData, lang, index, fingerprintScores }) {
 
       {(aiData?.why || pub.description) && (
         <p style={{
-          fontSize: 12, color: "#555", margin: "0 0 12px", lineHeight: 1.7,
-          fontStyle: "italic",
-          borderLeft: `1px solid #1e1e1e`, paddingLeft: 10,
+          fontSize: 12, color: "#b0a898", margin: "0 0 12px", lineHeight: 1.7,
+          fontStyle: "italic", borderLeft: "1px solid #1e1e1e", paddingLeft: 10,
         }}>
           {aiData?.why || (pub.description || "").slice(0, 140) + "…"}
         </p>
       )}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", gap: 14, fontSize: 10, color: "#333", fontFamily: "monospace" }}>
+        <div style={{ display: "flex", gap: 14, fontSize: 10, color: "#888", fontFamily: "monospace" }}>
           {subs && <span>👥 {subs.toLocaleString()}</span>}
           {pub.authorName && <span>✍ {pub.authorName}</span>}
+          {pub.paymentsState === "enabled" && <span style={{ color: lang.accentColor }}>$ paid</span>}
         </div>
         <a href={url} target="_blank" rel="noopener noreferrer" style={{
           fontSize: 10, color: lang.accentColor, textDecoration: "none",
@@ -1136,101 +1240,48 @@ function LangTab({ lang, active, onClick }) {
       <span style={{ fontSize: 16 }}>{lang.flag}</span>
       <span style={{ fontWeight: active ? 600 : 400 }}>{lang.label}</span>
       {!lang.launched
-        ? <span style={{ fontSize: 8, color: "#333", fontFamily: "monospace", letterSpacing: "0.06em" }}>{lang.launchDate}</span>
+        ? <span style={{ fontSize: 8, color: "#888", fontFamily: "monospace", letterSpacing: "0.06em" }}>{lang.launchDate}</span>
         : !active && <span style={{ fontSize: 8, color: lang.accentColor, fontFamily: "monospace" }}>live</span>
       }
     </button>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MAIN APP
-// ─────────────────────────────────────────────────────────────────────────────
-// Diagnostic panel component — shows per-term request outcomes
 function DiagnosticPanel({ diagnostics, globalMode, lang }) {
   const [open, setOpen] = useState(false);
-
-  const modeColor = {
-    SUCCESS: "#22c55e",
-    RATE_429: "#f59e0b",
-    CORS: "#ef4444",
-    TIMEOUT: "#f59e0b",
-    HTTP_ERR: "#ef4444",
-    PARTIAL_CORS: "#f59e0b",
-    PARTIAL_429: "#f59e0b",
-  };
-
-  const modeLabel = {
-    SUCCESS: "✓ Connected",
-    RATE_429: "⚠ Rate limited",
-    CORS: "✗ CORS block — sandbox limitation",
-    TIMEOUT: "⚠ Timeout",
-    HTTP_ERR: "✗ HTTP error",
-    PARTIAL_CORS: "~ Partial — some terms CORS blocked",
-    PARTIAL_429: "~ Partial — some terms rate limited",
-  };
-
+  const modeColor = { SUCCESS: "#22c55e", RATE_429: "#f59e0b", CORS: "#ef4444", TIMEOUT: "#f59e0b", HTTP_ERR: "#ef4444", PARTIAL_CORS: "#f59e0b", PARTIAL_429: "#f59e0b" };
+  const modeLabel = { SUCCESS: "✓ Connected", RATE_429: "⚠ Rate limited", CORS: "✗ CORS block", TIMEOUT: "⚠ Timeout", HTTP_ERR: "✗ HTTP error", PARTIAL_CORS: "~ Partial CORS block", PARTIAL_429: "~ Partial rate limit" };
   const modeAdvice = {
-    CORS: "The browser sandbox is blocking requests before they reach Substack. Host this tool on your own domain and it will work.",
-    RATE_429: `Substack throttled us. Retry-After: ${diagnostics.find(d => d.retryAfter)?.retryAfter || "unknown"}. Wait and try again.`,
-    TIMEOUT: `Requests timed out after ${FETCH_TIMEOUT_MS / 1000}s. Substack may be slow or blocking. Try again shortly.`,
-    HTTP_ERR: "Substack returned an unexpected error. Check the status codes below.",
-    PARTIAL_CORS: "Some terms were blocked by CORS. Results are incomplete. Host on your own domain for full access.",
-    PARTIAL_429: "Some terms were rate limited. Results are incomplete. Wait a moment and retry.",
+    CORS: "The browser sandbox is blocking requests. Host this tool on your own domain for full access.",
+    RATE_429: `Substack throttled requests. Wait and try again.`,
+    TIMEOUT: `Requests timed out after ${FETCH_TIMEOUT_MS / 1000}s. Try again shortly.`,
+    HTTP_ERR: "Substack returned an unexpected error.",
+    PARTIAL_CORS: "Some terms were CORS-blocked. Results are partial.",
+    PARTIAL_429: "Some terms were rate limited. Results are partial.",
     SUCCESS: null,
   };
-
   if (!diagnostics.length) return null;
-
   return (
     <div style={{ marginBottom: 16, animation: "fadeUp 0.3s ease both" }}>
-      <div style={{
-        background: "#0a0a0a",
-        border: `1px solid ${modeColor[globalMode] || "#1e1e1e"}22`,
-        borderLeft: `3px solid ${modeColor[globalMode] || "#1e1e1e"}`,
-        borderRadius: 2, padding: "10px 16px",
-      }}>
+      <div style={{ background: "#0a0a0a", border: `1px solid ${modeColor[globalMode] || "#1e1e1e"}22`, borderLeft: `3px solid ${modeColor[globalMode] || "#1e1e1e"}`, borderRadius: 2, padding: "10px 16px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 11, fontFamily: "monospace", color: modeColor[globalMode] || "#555", letterSpacing: "0.08em" }}>
             {modeLabel[globalMode] || globalMode}
           </span>
-          <button onClick={() => setOpen(!open)} style={{
-            background: "transparent", border: "none", color: "#333",
-            fontSize: 10, fontFamily: "monospace", cursor: "pointer",
-            letterSpacing: "0.1em", textTransform: "uppercase",
-          }}>
+          <button onClick={() => setOpen(!open)} style={{ background: "transparent", border: "none", color: "#777", fontSize: 10, fontFamily: "monospace", cursor: "pointer", letterSpacing: "0.1em", textTransform: "uppercase" }}>
             {open ? "hide" : "details"} ↕
           </button>
         </div>
-
         {modeAdvice[globalMode] && (
-          <div style={{ fontSize: 11, color: "#555", marginTop: 6, lineHeight: 1.6, fontStyle: "italic" }}>
-            {modeAdvice[globalMode]}
-          </div>
+          <div style={{ fontSize: 11, color: "#aaa", marginTop: 6, lineHeight: 1.6, fontStyle: "italic" }}>{modeAdvice[globalMode]}</div>
         )}
-
         {open && (
           <div style={{ marginTop: 12, borderTop: "1px solid #111", paddingTop: 12 }}>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 60px 80px 50px 60px",
-              gap: "4px 12px",
-              fontSize: 9, fontFamily: "monospace", color: "#333",
-              letterSpacing: "0.08em", textTransform: "uppercase",
-              marginBottom: 6,
-            }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 60px 80px 50px 60px", gap: "4px 12px", fontSize: 9, fontFamily: "monospace", color: "#888", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
               <span>Term</span><span>Status</span><span>Mode</span><span>Results</span><span>Time</span>
             </div>
             {diagnostics.map((d, i) => (
-              <div key={i} style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 60px 80px 50px 60px",
-                gap: "4px 12px",
-                fontSize: 10, fontFamily: "monospace",
-                padding: "4px 0",
-                borderBottom: "1px solid #0e0e0e",
-                color: d.mode === "SUCCESS" ? "#555" : d.mode === "CORS" || d.mode === "HTTP_ERR" ? "#ef444488" : "#f59e0b88",
-              }}>
+              <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 60px 80px 50px 60px", gap: "4px 12px", fontSize: 10, fontFamily: "monospace", padding: "4px 0", borderBottom: "1px solid #0e0e0e", color: d.mode === "SUCCESS" ? "#555" : d.mode === "CORS" || d.mode === "HTTP_ERR" ? "#ef444488" : "#f59e0b88" }}>
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.term}</span>
                 <span>{d.status ?? "—"}</span>
                 <span>{d.mode}</span>
@@ -1238,11 +1289,6 @@ function DiagnosticPanel({ diagnostics, globalMode, lang }) {
                 <span>{d.ms ? `${d.ms}ms` : "—"}</span>
               </div>
             ))}
-            {diagnostics.some(d => d.retryAfter) && (
-              <div style={{ marginTop: 8, fontSize: 10, color: "#f59e0b", fontFamily: "monospace" }}>
-                Retry-After: {diagnostics.find(d => d.retryAfter)?.retryAfter}
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -1250,11 +1296,15 @@ function DiagnosticPanel({ diagnostics, globalMode, lang }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN APP
+// ─────────────────────────────────────────────────────────────────────────────
 export default function App() {
   const LANGS = Object.values(FINGERPRINTS);
   const [activeLang, setActiveLang] = useState(LANGS[0]);
   const [results, setResults] = useState([]);
   const [fingerprintMap, setFingerprintMap] = useState({});
+  const [cefrMap, setCefrMap] = useState({});
   const [aiScores, setAiScores] = useState([]);
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -1263,46 +1313,88 @@ export default function App() {
   const [filterHigh, setFilterHigh] = useState(false);
   const [diagnostics, setDiagnostics] = useState([]);
   const [globalMode, setGlobalMode] = useState(null);
+  const [selectedCategories, setSelectedCategories] = useState(["travel", "literature"]);
 
-  const runSearch = useCallback(async (lang) => {
+  const toggleCategory = (cat) => {
+    setSelectedCategories(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+    );
+  };
+
+  const runSearch = useCallback(async (lang, cats) => {
     setLoading(true); setError(null); setResults([]);
-    setFingerprintMap({}); setAiScores([]);
-    setDiagnostics([]); setGlobalMode(null);
-    setSearched(true);
+    setFingerprintMap({}); setCefrMap({}); setAiScores([]);
+    setDiagnostics([]); setGlobalMode(null); setSearched(true);
 
     try {
       const { pubs, diagnostics: diag, globalMode: gm } = await fetchSubstackResults(
-        lang,
-        (liveDiag) => setDiagnostics(liveDiag) // stream updates as terms resolve
+        lang, (liveDiag) => setDiagnostics(liveDiag), cats
       );
 
       setDiagnostics(diag);
       setGlobalMode(gm);
 
-      if (pubs.length === 0) {
-        setLoading(false);
-        return;
-      }
+      if (pubs.length === 0) { setLoading(false); return; }
 
-      // Run fingerprint engine on each result
+      // Step 1 — quick fingerprint on name + description to get initial sort
       const fpMap = {};
+      const cMap = {};
       pubs.forEach(p => {
         const text = (p.name || "") + " " + (p.description || "");
-        fpMap[p.subdomain || p.id] = identifyLanguage(text);
+        const key = p.subdomain || p.id;
+        fpMap[key] = identifyLanguage(text);
+        cMap[key] = scoreCEFR(text, lang.code);
       });
-      setFingerprintMap(fpMap);
 
-      // Sort by fingerprint score for this language
-      const sorted = [...pubs].sort((a, b) => {
+      // language field boost: if Substack says pt-br, add 0.2 to fingerprint score
+      const getLangBoost = (p) => {
+        if (!lang.code) return 0;
+        const pubLang = (p.language || "").toLowerCase();
+        if (pubLang === "pt-br" && lang.code === "pt") return 0.2;
+        if (pubLang === "fr" && lang.code === "fr") return 0.2;
+        if (pubLang === "es" && lang.code === "es") return 0.2;
+        return 0;
+      };
+
+      // Initial sort by fingerprint + language boost + subscribers
+      const initialSorted = [...pubs].sort((a, b) => {
         const aKey = a.subdomain || a.id;
         const bKey = b.subdomain || b.id;
-        const aScore = fpMap[aKey]?.find(x => x.lang.code === lang.code)?.score || 0;
-        const bScore = fpMap[bKey]?.find(x => x.lang.code === lang.code)?.score || 0;
-        return bScore - aScore;
+        const aFp = (fpMap[aKey]?.find(x => x.lang.code === lang.code)?.score || 0) + getLangBoost(a);
+        const bFp = (fpMap[bKey]?.find(x => x.lang.code === lang.code)?.score || 0) + getLangBoost(b);
+        if (Math.abs(aFp - bFp) > 0.05) return bFp - aFp;
+        return (b.roughNumFreeSubscribers || 0) - (a.roughNumFreeSubscribers || 0);
+      });
+
+      // Show results immediately while we enrich
+      setResults(initialSorted);
+      setFingerprintMap({...fpMap});
+      setCefrMap(cMap);
+      setLoading(false);
+
+      // Step 2 — fetch first post text for top 10, re-fingerprint, re-sort
+      const enriched = await enrichWithPostText(initialSorted, 10);
+      const enrichedFpMap = {...fpMap};
+      const enrichedCefrMap = {...cMap};
+      enriched.slice(0, 10).forEach(p => {
+        const key = p.subdomain || p.id;
+        const richText = (p.name || "") + " " + (p.description || "") + " " + (p.postText || "");
+        enrichedFpMap[key] = identifyLanguage(richText);
+        enrichedCefrMap[key] = scoreCEFR(richText, lang.code);
+      });
+
+      const sorted = [...enriched].sort((a, b) => {
+        const aKey = a.subdomain || a.id;
+        const bKey = b.subdomain || b.id;
+        const aFp = (enrichedFpMap[aKey]?.find(x => x.lang.code === lang.code)?.score || 0) + getLangBoost(a);
+        const bFp = (enrichedFpMap[bKey]?.find(x => x.lang.code === lang.code)?.score || 0) + getLangBoost(b);
+        if (Math.abs(aFp - bFp) > 0.05) return bFp - aFp;
+        return (b.roughNumFreeSubscribers || 0) - (a.roughNumFreeSubscribers || 0);
       });
 
       setResults(sorted);
-      setLoading(false);
+      setFingerprintMap(enrichedFpMap);
+      setCefrMap(enrichedCefrMap);
 
       if (sorted.length > 0) {
         setAiLoading(true);
@@ -1318,20 +1410,21 @@ export default function App() {
 
   const handleLang = (lang) => {
     setActiveLang(lang);
-    setResults([]); setAiScores([]);
+    setResults([]); setAiScores([]); setCefrMap({});
     setSearched(false); setError(null);
     setDiagnostics([]); setGlobalMode(null);
+    // Reset categories to travel+literature as defaults
+    setSelectedCategories(["travel", "literature"]);
   };
 
   const romance = LANGS.filter(l => l.family === "Romance");
   const other = LANGS.filter(l => l.family !== "Romance");
-
   const displayed = filterHigh
     ? results.filter((_, i) => (aiScores[i]?.score || 0) >= 7)
     : results;
 
   return (
-    <div style={{ minHeight: "100vh", background: "#111111", color: "#e8e0d4", fontFamily: "'Georgia', serif" }}>
+    <div style={{ minHeight: "100vh", background: "#080808", color: "#e8e0d4", fontFamily: "'Georgia', serif" }}>
       <style>{`
         @keyframes fadeUp { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }
         @keyframes pulse { 0%,100% { opacity:1 } 50% { opacity:0.3 } }
@@ -1342,16 +1435,16 @@ export default function App() {
 
       {/* Header */}
       <div style={{ borderBottom: "1px solid #111", padding: "44px 32px 32px", maxWidth: 880, margin: "0 auto", animation: "fadeUp 0.5s ease both" }}>
-        <div style={{ fontSize: 9, letterSpacing: "0.22em", color: "#333", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 14 }}>
+        <div style={{ fontSize: 9, letterSpacing: "0.22em", color: "#888", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 14 }}>
           The Marginal Pilgrims · Discovery Tools
         </div>
         <h1 style={{ fontSize: "clamp(36px, 6vw, 60px)", fontWeight: 400, color: "#f0ebe3", margin: "0 0 10px", lineHeight: 1.1, letterSpacing: "-0.025em" }}>
           Lingua
         </h1>
-        <p style={{ fontSize: 14, color: "#888", margin: "0 0 4px", fontStyle: "italic", lineHeight: 1.7, maxWidth: 460 }}>
+        <p style={{ fontSize: 14, color: "#aaa", margin: "0 0 4px", fontStyle: "italic", lineHeight: 1.7, maxWidth: 460 }}>
           Substack discovery for the non-English world. One language at a time.
         </p>
-        <p style={{ fontSize: 10, color: "#2a2a2a", fontFamily: "monospace", margin: 0, letterSpacing: "0.05em" }}>
+        <p style={{ fontSize: 10, color: "#aaa", fontFamily: "monospace", margin: 0, letterSpacing: "0.05em" }}>
           8-layer linguistic fingerprint engine · Romance family first
         </p>
       </div>
@@ -1360,51 +1453,90 @@ export default function App() {
 
         {/* Lang tabs */}
         <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize: 9, letterSpacing: "0.18em", color: "#222", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 10 }}>Romance Family</div>
+          <div style={{ fontSize: 9, letterSpacing: "0.18em", color: "#aaa", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 10 }}>Romance Family</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
             {romance.map(l => <LangTab key={l.code} lang={l} active={activeLang.code === l.code} onClick={() => handleLang(l)} />)}
           </div>
-          <div style={{ fontSize: 9, letterSpacing: "0.18em", color: "#1a1a1a", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 10 }}>Expanding Later</div>
+          <div style={{ fontSize: 9, letterSpacing: "0.18em", color: "#555", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 10 }}>Expanding Later</div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {other.map(l => <LangTab key={l.code} lang={l} active={false} onClick={() => {}} />)}
           </div>
         </div>
 
         {/* Action bar */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 0", borderTop: "1px solid #111", borderBottom: "1px solid #111", marginBottom: 20 }}>
-          <div>
-            <div style={{ fontSize: 18, marginBottom: 2 }}>{activeLang.flag} <span style={{ color: "#f0ebe3" }}>{activeLang.label}</span></div>
-            <div style={{ fontSize: 11, color: "#333", fontStyle: "italic" }}>{activeLang.description}</div>
+        <div style={{ padding: "18px 0", borderTop: "1px solid #111", borderBottom: "1px solid #111", marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: activeLang.launched ? 16 : 0 }}>
+            <div>
+              <div style={{ fontSize: 18, marginBottom: 2 }}>{activeLang.flag} <span style={{ color: "#f0ebe3" }}>{activeLang.label}</span></div>
+              <div style={{ fontSize: 11, color: "#999", fontStyle: "italic" }}>{activeLang.description}</div>
+            </div>
+            {activeLang.launched ? (
+              <button onClick={() => runSearch(activeLang, selectedCategories)} disabled={loading} style={{
+                background: loading ? "#0e0e0e" : activeLang.accentColor,
+                color: loading ? "#666" : "#000",
+                border: "none", borderRadius: 2, padding: "11px 24px",
+                fontSize: 12, fontFamily: "'Georgia', serif", cursor: loading ? "not-allowed" : "pointer",
+                fontWeight: 600, letterSpacing: "0.03em", transition: "all 0.2s", flexShrink: 0,
+              }}>
+                {loading ? "Searching…" : `Discover ${activeLang.label}`}
+              </button>
+            ) : (
+              <span style={{ fontSize: 10, color: "#aaa", fontFamily: "monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+                Launching {activeLang.launchDate}
+              </span>
+            )}
           </div>
-          {activeLang.launched ? (
-            <button onClick={() => runSearch(activeLang)} disabled={loading} style={{
-              background: loading ? "#0e0e0e" : activeLang.accentColor,
-              color: loading ? "#333" : "#000",
-              border: "none", borderRadius: 2, padding: "11px 24px",
-              fontSize: 12, fontFamily: "'Georgia', serif", cursor: loading ? "not-allowed" : "pointer",
-              fontWeight: 600, letterSpacing: "0.03em", transition: "all 0.2s",
-            }}>
-              {loading ? "Searching…" : `Discover ${activeLang.label}`}
-            </button>
-          ) : (
-            <span style={{ fontSize: 10, color: "#222", fontFamily: "monospace", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              Launching {activeLang.launchDate}
-            </span>
+
+          {/* Category checklist — only for launched languages with categoryTerms */}
+          {activeLang.launched && activeLang.categoryTerms && (
+            <div>
+              <div style={{ fontSize: 9, letterSpacing: "0.16em", color: "#555", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 10 }}>
+                Filter by category
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {Object.entries({
+                  travel: "✈ Travel", literature: "📖 Literature", culture: "🎨 Culture",
+                  politics: "🏛 Politics", philosophy: "💭 Philosophy", economics: "📈 Economics",
+                  food: "🍽 Food", science: "🔬 Science", history: "📜 History", society: "🌍 Society",
+                }).map(([cat, label]) => {
+                  const active = selectedCategories.includes(cat);
+                  return (
+                    <button key={cat} onClick={() => toggleCategory(cat)} style={{
+                      background: active ? `${activeLang.accentColor}22` : "transparent",
+                      color: active ? activeLang.accentColor : "#666",
+                      border: `1px solid ${active ? activeLang.accentColor : "#1e1e1e"}`,
+                      borderRadius: 2, padding: "5px 12px",
+                      fontSize: 11, fontFamily: "'Georgia', serif",
+                      cursor: "pointer", transition: "all 0.15s",
+                      letterSpacing: "0.02em",
+                    }}>
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedCategories.length === 0 && (
+                <div style={{ fontSize: 10, color: "#555", fontFamily: "monospace", marginTop: 8, fontStyle: "italic" }}>
+                  No categories selected — will use default search terms
+                </div>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Status */}
+        {/* Status bar */}
         {searched && !loading && results.length > 0 && (
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, animation: "fadeUp 0.3s ease both" }}>
-            <div style={{ fontSize: 11, color: "#333", fontFamily: "monospace" }}>
+            <div style={{ fontSize: 11, color: "#aaa", fontFamily: "monospace" }}>
               {results.length} found
+              {selectedCategories.length > 0 && <span style={{ color: "#555", marginLeft: 8 }}>· {selectedCategories.length} {selectedCategories.length === 1 ? "category" : "categories"}</span>}
               {aiLoading && <span style={{ color: activeLang.accentColor, animation: "pulse 1.2s infinite", marginLeft: 10 }}>· AI scoring…</span>}
-              {!aiLoading && aiScores.length > 0 && <span style={{ color: "#2a2a2a", marginLeft: 10 }}>· 8-layer fingerprint + AI scored</span>}
+              {!aiLoading && aiScores.length > 0 && <span style={{ color: "#777", marginLeft: 10 }}>· fingerprint + AI scored</span>}
             </div>
             {aiScores.length > 0 && (
               <button onClick={() => setFilterHigh(!filterHigh)} style={{
                 background: filterHigh ? activeLang.accentColor : "transparent",
-                color: filterHigh ? "#000" : "#444",
+                color: filterHigh ? "#000" : "#bbb",
                 border: `1px solid ${filterHigh ? activeLang.accentColor : "#1e1e1e"}`,
                 borderRadius: 2, padding: "4px 10px", fontSize: 10,
                 fontFamily: "monospace", cursor: "pointer",
@@ -1416,19 +1548,18 @@ export default function App() {
           </div>
         )}
 
-        {/* Diagnostic panel — always shown after search */}
+        {/* Diagnostics */}
         {searched && diagnostics.length > 0 && (
           <DiagnosticPanel diagnostics={diagnostics} globalMode={globalMode} lang={activeLang} />
         )}
 
-        {/* Generic error fallback */}
         {error && (
-          <div style={{ background: "#0a0707", border: "1px solid #1a1010", borderLeft: `3px solid #ef4444`, padding: "14px 18px", borderRadius: 2, marginBottom: 14, fontSize: 12, color: "#666", lineHeight: 1.6 }}>
+          <div style={{ background: "#0a0707", border: "1px solid #1a1010", borderLeft: "3px solid #ef4444", padding: "14px 18px", borderRadius: 2, marginBottom: 14, fontSize: 12, color: "#aaa", lineHeight: 1.6 }}>
             {error}
           </div>
         )}
 
-        {/* Skeleton */}
+        {/* Loading skeleton */}
         {loading && Array.from({ length: 6 }).map((_, i) => (
           <div key={i} style={{ background: "#0c0c0c", border: "1px solid #111", borderRadius: 2, padding: "18px 22px", marginBottom: 2, opacity: 1 - i * 0.12 }}>
             <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
@@ -1446,27 +1577,32 @@ export default function App() {
         {!loading && displayed.map((pub, i) => {
           const key = pub.subdomain || pub.id;
           return (
-            <NewsletterCard key={key} pub={pub} aiData={aiScores[results.indexOf(pub)] || null}
-              lang={activeLang} index={i} fingerprintScores={fingerprintMap[key] || null} />
+            <NewsletterCard
+              key={key} pub={pub}
+              aiData={aiScores[results.indexOf(pub)] || null}
+              lang={activeLang} index={i}
+              fingerprintScores={fingerprintMap[key] || null}
+              cefrData={cefrMap[key] || null}
+            />
           );
         })}
 
-        {/* Empty */}
+        {/* Empty state */}
         {!loading && searched && results.length === 0 && !error && (
-          <div style={{ textAlign: "center", padding: "60px 20px", color: "#222", fontStyle: "italic", fontSize: 14, animation: "fadeUp 0.4s ease both" }}>
-            No results. Substack may be rate-limiting.<br />
-            <span style={{ fontSize: 11, color: "#1a1a1a", marginTop: 6, display: "block" }}>Try again in a moment.</span>
+          <div style={{ textAlign: "center", padding: "60px 20px", color: "#aaa", fontStyle: "italic", fontSize: 14, animation: "fadeUp 0.4s ease both" }}>
+            No results. Substack may be rate-limiting or the search terms need tuning.<br />
+            <span style={{ fontSize: 11, color: "#555", marginTop: 6, display: "block" }}>Try again in a moment.</span>
           </div>
         )}
 
-        {/* Pre-search — fingerprint methodology */}
+        {/* Pre-search state */}
         {!searched && !loading && (
           <div style={{ paddingTop: 40, animation: "fadeUp 0.5s ease both 0.15s both" }}>
             <div style={{ borderLeft: `2px solid ${activeLang.accentColor}`, paddingLeft: 18, marginBottom: 36 }}>
-              <div style={{ fontSize: 13, color: "#888", lineHeight: 1.9, marginBottom: 8 }}>
+              <div style={{ fontSize: 13, color: "#999", lineHeight: 1.9, marginBottom: 8 }}>
                 Lingua uses an 8-layer linguistic fingerprint engine — not keywords — to find newsletters written in each language.
               </div>
-              <div style={{ fontSize: 11, color: "#2a2a2a", fontFamily: "monospace", lineHeight: 2 }}>
+              <div style={{ fontSize: 11, color: "#aaa", fontFamily: "monospace", lineHeight: 2 }}>
                 1. Exclusive characters & nasal vowels<br />
                 2. Special character patterns & elision<br />
                 3. Possessive pronouns<br />
@@ -1478,13 +1614,13 @@ export default function App() {
               </div>
             </div>
 
-            <div style={{ fontSize: 9, letterSpacing: "0.18em", color: "#1a1a1a", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 14 }}>Roadmap</div>
+            <div style={{ fontSize: 9, letterSpacing: "0.18em", color: "#555", textTransform: "uppercase", fontFamily: "monospace", marginBottom: 14 }}>Roadmap</div>
             {LANGS.map(l => (
               <div key={l.code} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 0", borderBottom: "1px solid #0e0e0e" }}>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                   <span style={{ fontSize: 14 }}>{l.flag}</span>
                   <span style={{ fontSize: 12, color: l.launched ? "#d0c8be" : "#222" }}>{l.label}</span>
-                  <span style={{ fontSize: 10, color: "#222", fontStyle: "italic" }}>{l.description}</span>
+                  <span style={{ fontSize: 10, color: "#aaa", fontStyle: "italic" }}>{l.description}</span>
                 </div>
                 <span style={{ fontSize: 9, fontFamily: "monospace", color: l.launched ? activeLang.accentColor : "#1a1a1a", letterSpacing: "0.1em", textTransform: "uppercase" }}>
                   {l.launched ? "● Live" : l.launchDate}
@@ -1492,16 +1628,16 @@ export default function App() {
               </div>
             ))}
 
-            <div style={{ marginTop: 40, paddingTop: 20, borderTop: "1px solid #0e0e0e", fontSize: 11, color: "#1a1a1a", fontStyle: "italic", lineHeight: 1.8 }}>
+            <div style={{ marginTop: 40, paddingTop: 20, borderTop: "1px solid #0e0e0e", fontSize: 11, color: "#999", fontStyle: "italic", lineHeight: 1.8 }}>
               "The grammar is archaeology. Every word is a dig site."<br />
-              <span style={{ fontSize: 9, fontFamily: "monospace", color: "#161616" }}>— The Marginal Pilgrims</span>
+              <span style={{ fontSize: 9, fontFamily: "monospace", color: "#555" }}>— The Marginal Pilgrims</span>
             </div>
           </div>
         )}
 
-        <div style={{ marginTop: 60, paddingTop: 20, borderTop: "1px solid #0e0e0e", fontSize: 10, color: "#1a1a1a", fontFamily: "monospace", display: "flex", justifyContent: "space-between", letterSpacing: "0.08em" }}>
+        <div style={{ marginTop: 60, paddingTop: 20, borderTop: "1px solid #0e0e0e", fontSize: 10, color: "#666", fontFamily: "monospace", display: "flex", justifyContent: "space-between", letterSpacing: "0.08em" }}>
           <span>LINGUA · THE MARGINAL PILGRIMS</span>
-          <span>v2.0 · 8-LAYER ENGINE</span>
+          <span>v2.1 · 8-LAYER ENGINE</span>
         </div>
       </div>
     </div>
